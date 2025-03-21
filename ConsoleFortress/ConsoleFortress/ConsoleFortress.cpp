@@ -3,9 +3,8 @@
 #include "KeyCodes.h"
 #include "Color.h"
 
-#define X_PIXELS 200
-#define Y_PIXELS 50
-
+#define X_PIXELS 2000
+#define Y_PIXELS 500
 
 
 struct Picture {
@@ -33,6 +32,20 @@ void DrawToPicture(int x, int y, const wchar_t* s);
 void DrawToPicture(int x, int y, const wchar_t* s, WORD color);
 void ClearPictureCell(int x, int y);
 void initScreen(Picture& screen);
+void DrawMultilineToPicture(int x, int y, const wchar_t* s);
+void DrawMultilineToPicture(int x, int y, const wchar_t* s, WORD color);
+
+
+
+const wchar_t* tank =
+L"     _____       \n"
+L"    /     \\-----\n"
+L"/¯¯¯       ¯¯¯\\ \n"
+L"\\_____________/ \n"
+L" \\0_0_0_0_0_0/  \n";
+
+
+
 
 int main(void)
 {
@@ -42,7 +55,7 @@ int main(void)
 
 	int x = 5, y = 5;
 
-	DrawToPicture(x, y, L"★",0x0001);							//버퍼에 그리기
+	DrawMultilineToPicture(x, y, tank, GREEN);
 	DrawScreen();
 
 	while (1)
@@ -50,23 +63,24 @@ int main(void)
 		//input -----------------------------------
 		int key = Getkey();
 		if (key == KEY_LEFT) { if (x > 0) x = x - 1; }	// 좌 방향키
-		if (key == KEY_RIGHT) { if (x < 20) x = x + 1; }	// 우 방향키
+		if (key == KEY_RIGHT) { if (x < 200) x = x + 1; }	// 우 방향키
 		if (key == KEY_UP) { if (y > 0) y = y - 1; }	// 상 방향키
-		if (key == KEY_DOWN) { if (y < 20) y = y + 1; }	// 하 방향키
+		if (key == KEY_DOWN) { if (y < 200) y = y + 1; }	// 하 방향키
 
 		//-----------------------------------------
 
+		DrawMultilineToPicture(x, y, tank, GREEN);
 
 		//display ---------------------------------
 
 		// HandleConsoleKeyBoardInput();
-
-		DrawToPicture(x, y, L"★",BLUE);
 		DrawScreen();	
 
 	}
 	return 0;
 }
+
+
 
 
 void PrintPos(int x, int y, const char* s)
@@ -200,4 +214,24 @@ void ClearPictureCell(int x, int y) {
 	MainScreen.unicode[y][x] = L' ';
 	// Reset the color attribute to default (white on black).
 	MainScreen.color[y][x] = 0x000F;
+}
+void DrawMultilineToPicture(int x, int y, const wchar_t* s) {
+	DrawMultilineToPicture(x, y, s, 0x000F);
+}
+void DrawMultilineToPicture(int x, int y, const wchar_t* s, WORD color = 0x000F) {
+	int cur_x = x;
+	int cur_y = y;
+	for (int i = 0; s[i] != L'\0'; i++) {
+		if (s[i] == L'\n') {
+			cur_y++;
+			cur_x = x;  // Reset x to the starting column for a new line
+		}
+		else {
+			if (cur_y >= 0 && cur_y < Y_PIXELS && cur_x >= 0 && cur_x < X_PIXELS) {
+				MainScreen.unicode[cur_y][cur_x] = s[i];
+				MainScreen.color[cur_y][cur_x] = color;
+			}
+			cur_x++;
+		}
+	}
 }
