@@ -28,6 +28,7 @@
 /build/
 /CMakeFiles/
 /CMakeCache.txt
+/
 cmake_install.cmake
 Makefile
 
@@ -67,3 +68,17 @@ desktop.ini
 
 # Others
 *.log
+
+
+# Common Visual Studio build artifacts
+*.tlog
+*.obj
+*.pch
+*.pdb
+*.ilk
+*.idb
+*.log
+*.recipe
+
+
+

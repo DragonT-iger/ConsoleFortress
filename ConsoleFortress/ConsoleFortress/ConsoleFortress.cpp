@@ -1,5 +1,19 @@
 ﻿#include <windows.h>
 #include <conio.h>
+#include "KeyCodes.h"
+#include "Color.h"
+
+#define X_PIXELS 200
+#define Y_PIXELS 50
+
+
+
+struct Picture {
+	wchar_t unicode[Y_PIXELS][X_PIXELS];
+	WORD color[Y_PIXELS][X_PIXELS];
+};
+
+Picture MainScreen;
 
 HANDLE g_hScreen[2]; //두 개의 화면버퍼를 담을 배열
 int screen_cur = 0;
@@ -13,6 +27,12 @@ void ScreenInit();
 void ScreenStart();								//스크린 
 void ScreenEnd();								//스크린 
 void ScreenClear(HANDLE hConsole);				//스크린 클리어
+void DrawUnicodeFast(HANDLE hConsole, wchar_t picture[Y_PIXELS][X_PIXELS], WORD colors[Y_PIXELS][X_PIXELS]);
+void DrawScreen(void);
+void DrawToPicture(int x, int y, const wchar_t* s);
+void DrawToPicture(int x, int y, const wchar_t* s, WORD color);
+void ClearPictureCell(int x, int y);
+void initScreen(Picture& screen);
 
 int main(void)
 {
@@ -22,38 +42,32 @@ int main(void)
 
 	int x = 5, y = 5;
 
-	ScreenStart();
-	PrintPos(x, y, "★");							//버퍼에 그리기
-	ScreenEnd();
+	DrawToPicture(x, y, L"★",0x0001);							//버퍼에 그리기
+	DrawScreen();
 
 	while (1)
 	{
 		//input -----------------------------------
 		int key = Getkey();
-		if (key == 75) { if (x > 0) x = x - 1; }	// 좌 방향키
-		if (key == 77) { if (x < 20) x = x + 1; }	// 우 방향키
-		if (key == 72) { if (y > 0) y = y - 1; }	// 상 방향키
-		if (key == 80) { if (y < 20) y = y + 1; }	// 하 방향키
+		if (key == KEY_LEFT) { if (x > 0) x = x - 1; }	// 좌 방향키
+		if (key == KEY_RIGHT) { if (x < 20) x = x + 1; }	// 우 방향키
+		if (key == KEY_UP) { if (y > 0) y = y - 1; }	// 상 방향키
+		if (key == KEY_DOWN) { if (y < 20) y = y + 1; }	// 하 방향키
 
 		//-----------------------------------------
 
+
 		//display ---------------------------------
-		ScreenStart();
 
-		PrintPos(x, y, "★");					 //버퍼에 그리기
+		// HandleConsoleKeyBoardInput();
 
-		ScreenEnd();
+		DrawToPicture(x, y, L"★",BLUE);
+		DrawScreen();	
+
 	}
 	return 0;
 }
 
-int Getkey(void)
-{
-	int ch = _getch();
-	if (ch == 0 || ch == 224)	// 방향키의 경우 0 또는 224의 값이 먼저 입력됨
-		ch = _getch();	// 그 다음에 해당 방향키에 따라 72(Up),80(Down),75(Left),77(Right) 값이 입력됨
-	return ch;
-}
 
 void PrintPos(int x, int y, const char* s)
 {
@@ -70,22 +84,21 @@ void PrintPos(int x, int y, const char* s)
 void ScreenClear(HANDLE hConsole)
 {
 	COORD coordScreen = { 0, 0 };
-	BOOL bSuccess;
 	DWORD cCharsWritten;
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
-	DWORD dwConSize;
+	BOOL bSuccess;
+
 	bSuccess = GetConsoleScreenBufferInfo(hConsole, &csbi);
-	dwConSize = csbi.dwSize.X * csbi.dwSize.Y;
-	/* fill the entire screen with blanks */
-	bSuccess = FillConsoleOutputCharacter(hConsole, (TCHAR)' ', dwConSize, coordScreen, &cCharsWritten);
-	/* get the current text attribute */
+	DWORD dwConSize = csbi.dwSize.X * csbi.dwSize.Y;
+
+	// Fill the entire screen with wide spaces.
+	FillConsoleOutputCharacterW(hConsole, L' ', dwConSize, coordScreen, &cCharsWritten);
+
 	bSuccess = GetConsoleScreenBufferInfo(hConsole, &csbi);
-	/* now set the buffer's attributes accordingly */
-	bSuccess = FillConsoleOutputAttribute(hConsole, csbi.wAttributes, dwConSize, coordScreen, &cCharsWritten);
-	/* put the cursor at (0, 0) */
-	bSuccess = SetConsoleCursorPosition(hConsole, coordScreen);
-	return;
+	FillConsoleOutputAttribute(hConsole, csbi.wAttributes, dwConSize, coordScreen, &cCharsWritten);
+	SetConsoleCursorPosition(hConsole, coordScreen);
 }
+
 static HANDLE myConsole;
 
 void ScreenInit() {
@@ -113,4 +126,78 @@ void CursorView(HANDLE hConsole, char show) //커서숨기기
 	ConsoleCursor.bVisible = show;
 	ConsoleCursor.dwSize = 1;
 	SetConsoleCursorInfo(hConsole, &ConsoleCursor);
+}
+
+void DrawUnicodeFast(HANDLE hConsole, wchar_t picture[Y_PIXELS][X_PIXELS], WORD colors[Y_PIXELS][X_PIXELS]) {
+	static CHAR_INFO consoleBuffer[X_PIXELS * Y_PIXELS];
+
+	// Define the region for the console output.
+	SMALL_RECT writeRegion = { 0, 0, X_PIXELS - 1, Y_PIXELS - 1 };
+
+	// Fill the CHAR_INFO array with Unicode characters and their respective color attributes.
+	for (int y = 0; y < Y_PIXELS; ++y) {
+		for (int x = 0; x < X_PIXELS; ++x) {
+			int idx = y * X_PIXELS + x;
+			consoleBuffer[idx].Char.UnicodeChar = picture[y][x]; // Set Unicode character.
+			consoleBuffer[idx].Attributes = colors[y][x];        // Set corresponding color attribute.
+		}
+	}
+
+	// Set buffer size and starting coordinate.
+	COORD bufSize = { (SHORT)X_PIXELS, (SHORT)Y_PIXELS };
+	COORD bufCoord = { 0, 0 };
+
+	// Write the full buffer to the console.
+	WriteConsoleOutputW(hConsole, consoleBuffer, bufSize, bufCoord, &writeRegion);
+}
+
+
+void DrawScreen(void) {
+
+	ScreenStart();
+
+	DrawUnicodeFast(g_hScreen[screen_cur], MainScreen.unicode, MainScreen.color);
+
+	ScreenEnd();
+
+	initScreen(MainScreen);
+}
+
+
+void initScreen(Picture& screen) {
+	for (int y = 0; y < Y_PIXELS; ++y) {
+		for (int x = 0; x < X_PIXELS; ++x) {
+			screen.unicode[y][x] = L' ';
+			screen.color[y][x] = 0x000F;
+		}
+	}
+}
+
+
+void DrawToPicture(int x, int y, const wchar_t* s) {
+	DrawToPicture(x, y, s, 0x000F);
+}
+
+void DrawToPicture(int x, int y, const wchar_t* s, WORD color) {
+	if (y < 0 || y >= Y_PIXELS) return;
+
+	int i = 0;
+	while (s[i] != L'\0') {
+		int pos = x + i;
+		if (pos < 0 || pos >= X_PIXELS) break;
+		MainScreen.unicode[y][pos] = s[i];
+		MainScreen.color[y][pos] = color;
+		i++;
+	}
+}
+
+void ClearPictureCell(int x, int y) {
+	// Check if the coordinates are within bounds.
+	if (x < 0 || x >= X_PIXELS || y < 0 || y >= Y_PIXELS) {
+		return;
+	}
+	// Clear the Unicode character by setting it to a space.
+	MainScreen.unicode[y][x] = L' ';
+	// Reset the color attribute to default (white on black).
+	MainScreen.color[y][x] = 0x000F;
 }
