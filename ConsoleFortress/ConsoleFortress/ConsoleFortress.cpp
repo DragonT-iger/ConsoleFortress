@@ -49,8 +49,10 @@ void DrawMultilineToMainScreen(int x, int y, const wchar_t* s);
 void DrawMultilineToMainScreen(int x, int y, const wchar_t* s, WORD color);
 void RenderStatusPanel(int x, int y, int player);
 void PlayerInit();
-void DrawTank(int player);
-void HandlePlayerInput(int player);
+void DrawTankCamera(int player);
+void HandleMainGamePlayerInput(int player);
+
+
 // GameManager Variables
 
 const int DEFAULTENERGY = 100;
@@ -75,7 +77,7 @@ struct Player {
 };
 Player PLAYER[2];
 
-GamePhase currentPhase = MAIN_MENU;
+
 
 
 const int PLAYER1 = 0;
@@ -95,17 +97,14 @@ enum GamePhase {
 	GAME_OVER
 };
 
+GamePhase currentPhase = SHOW_PLAYER;
 
 
 int main(void)
 {
 	CursorView(GetStdHandle(STD_OUTPUT_HANDLE), false);
 	ScreenInit();
-
 	PlayerInit();
-
-	DrawTank(PLAYER1);
-	DrawTank(PLAYER2);
 	DrawScreen();
 
 	// Main game loop with switch-case for phases
@@ -121,14 +120,76 @@ int main(void)
 			break;
 
 		case SHOW_PLAYER:
-			// TODO: fill in logic to show player on screen
-			break;
+		{
+			/*
+			 * We'll do a small sub-phase or state machine so we can:
+			 *   1) Center on Player1
+			 *   2) Show for a moment or wait for input
+			 *   3) Center on Player2
+			 *   4) Show for a moment or wait for input
+			 *   5) Finally fix camera on Player1 and move to next phase
+			 */
+
+			static int showPlayerSubPhase = 0;
+
+			switch (showPlayerSubPhase)
+			{
+			case 0:
+				// Center camera on Player1
+				CAMERA.x = PLAYER[PLAYER1].xAxis - 20; // Offsets so Player1 is somewhat in the center
+				CAMERA.y = PLAYER[PLAYER1].yAxis - 5;
+				showPlayerSubPhase++;
+				break;
+
+			case 1:
+				// Here you might wait for user input or for a timer to expire
+				// For simplicity, let's just move on when a key is pressed
+				if (_kbhit()) {
+					_getch(); // consume the key
+					showPlayerSubPhase++;
+				}
+				break;
+
+			case 2:
+				// Center camera on Player2
+				CAMERA.x = PLAYER[PLAYER2].xAxis - 20;
+				CAMERA.y = PLAYER[PLAYER2].yAxis - 5;
+				showPlayerSubPhase++;
+				break;
+
+			case 3:
+				// Wait again for user input or timer
+				if (_kbhit()) {
+					_getch();
+					showPlayerSubPhase++;
+				}
+				break;
+
+			case 4:
+				// Finally fix the camera on Player1
+				CAMERA.x = PLAYER[PLAYER1].xAxis - 20;
+				CAMERA.y = PLAYER[PLAYER1].yAxis - 5;
+
+				// Move on to the next phase
+				currentPhase = PLAYER1_MOVING;
+				break;
+			}
+
+			// We draw both players with the camera offset
+			DrawTankCamera(PLAYER1);
+			DrawTankCamera(PLAYER2);
+
+			
+		}
+		break;
 
 		case PLAYER1_MOVING:
 			// TODO: fill in player1 moving logic
 			// Example usage:
-			HandlePlayerInput(PLAYER1);
+			HandleMainGamePlayerInput(PLAYER1);
 			RenderStatusPanel(0, 50, PLAYER1);
+			DrawTankCamera(PLAYER1);
+			DrawTankCamera(PLAYER2);
 			break;
 
 		case PLAYER1_ANGLE:
@@ -163,20 +224,35 @@ int main(void)
 	return 0;
 }
 
-void DrawTank(int Player) {
-	DrawMultilineToMainScreen(PLAYER[Player].xAxis - 7, PLAYER[Player].yAxis - 3, tankUnicodeArt[int(PLAYER[Player].artillaryAngle / 15)], GREEN);
+void DrawTankCamera(int player)
+{
+	// We offset the position by CAMERA.x and CAMERA.y
+	int drawX = PLAYER[player].xAxis - CAMERA.x;
+	int drawY = PLAYER[player].yAxis - CAMERA.y;
+
+	// Safety check to avoid drawing out of bounds
+	if (drawX < 0 || drawX >= X_PIXELS || drawY < 0 || drawY >= Y_PIXELS) {
+		return;
+	}
+
+	// For example, we use the angle to choose an index in 'tankUnicodeArt'
+	int tankIndex = int(PLAYER[player].artillaryAngle / 15);
+
+	// Make sure the index doesn't go out of bounds for your tankUnicodeArt array
+	// (In your project, check the valid range. We'll assume it is safe for demonstration.)
+	DrawMultilineToMainScreen(drawX, drawY, tankUnicodeArt[tankIndex], GREEN);
 }
 
 
 void PlayerInit() {
-	PLAYER[0].xAxis = 5;
+	PLAYER[0].xAxis = 10;
 	PLAYER[0].yAxis = 5;
 
 	PLAYER[1].xAxis = 50;
 	PLAYER[1].yAxis = 5;
 }
 
-void HandlePlayerInput(int player) {
+void HandleMainGamePlayerInput(int player) {
 
 	int key = Getkey();
 
@@ -275,8 +351,6 @@ void ScreenInit() {
 
 	CursorView(g_hScreen[0], false);
 	CursorView(g_hScreen[1], false);
-
-	RenderStatusPanel(0, 50, PLAYER1);
 }
 
 void ScreenStart() {
