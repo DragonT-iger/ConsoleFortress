@@ -56,7 +56,10 @@ const int DEFAULTENERGY = 100;
 const int DEFAULTMOVE = 10;
 const int MAXARTILLARYANGLE = 75;
 
+
 struct Player {
+	int xAxis = 5;
+	int yAxis = 5;
 	int energy = DEFAULTENERGY;
 	int move = DEFAULTMOVE;
 	int artillaryPower = 0;
@@ -67,7 +70,14 @@ Player PLAYER[2];
 const int PLAYER1 = 0;
 const int PLAYER2 = 1;
 
-
+enum GamePhase {
+	PHASE_SHOW_PLAYER,
+	PHASE_PLAYER1_TURN,
+	PHASE_WAIT_PLAYER1_PROJECTILE,
+	PHASE_PLAYER2_TURN,
+	PHASE_WAIT_PLAYER2_PROJECTILE,
+	GAME_OVER
+};
 
 int main(void)
 {
