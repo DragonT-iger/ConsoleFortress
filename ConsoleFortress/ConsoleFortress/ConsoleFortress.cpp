@@ -61,8 +61,8 @@ const int MAXARTILLARYANGLE = 75;
 
 struct Camera
 {
-	int x = 0;
-	int y = 0;
+	int x = -80;
+	int y = 50;
 };
 
 Camera CAMERA;
@@ -77,11 +77,13 @@ struct Player {
 };
 Player PLAYER[2];
 
-
-
-
 const int PLAYER1 = 0;
 const int PLAYER2 = 1;
+
+const int P1_OFFSET_X = 0;
+const int P1_OFFSET_Y = 0;
+const int P2_OFFSET_X = 0;
+const int P2_OFFSET_Y = 0;
 
 enum GamePhase {
 	MAIN_MENU,
@@ -122,64 +124,106 @@ int main(void)
 		case SHOW_PLAYER:
 		{
 			/*
-			 * We'll do a small sub-phase or state machine so we can:
-			 *   1) Center on Player1
-			 *   2) Show for a moment or wait for input
-			 *   3) Center on Player2
-			 *   4) Show for a moment or wait for input
-			 *   5) Finally fix camera on Player1 and move to next phase
+			 * Sub-phase approach (time-based):
+			 *   0) Instantly place camera on Player1
+			 *   1) Animate camera from P1 -> P2 over 1 second
+			 *   2) Animate camera from P2 -> P1 over 1 second
+			 *   3) Move to next phase
 			 */
 
 			static int showPlayerSubPhase = 0;
 
+			// We'll use these to store animation info
+			static const ULONGLONG subPhaseDuration = 1000; // 1 second in ms
+			static ULONGLONG subPhaseStartTime = 0;
+
+			// Start/end positions for camera each sub-phase
+			static int startX = 0, startY = 0;
+			static int targetX = 0, targetY = 0;
+
+			// Get current time in ms
+			ULONGLONG now = GetTickCount64();
+
 			switch (showPlayerSubPhase)
 			{
 			case 0:
-				// Center camera on Player1
-				CAMERA.x = PLAYER[PLAYER1].xAxis - 20; // Offsets so Player1 is somewhat in the center
-				CAMERA.y = PLAYER[PLAYER1].yAxis - 5;
+				// Instantly place camera on Player1, applying Player1's offsets
+				CAMERA.x = PLAYER[PLAYER1].xAxis - P1_OFFSET_X;
+				CAMERA.y = PLAYER[PLAYER1].yAxis - P1_OFFSET_Y;
+
+				// Prepare for next sub-phase: animate from P1 -> P2
+				startX = CAMERA.x;
+				startY = CAMERA.y;
+				targetX = PLAYER[PLAYER2].xAxis - P2_OFFSET_X;
+				targetY = PLAYER[PLAYER2].yAxis - P2_OFFSET_Y;
+
+				subPhaseStartTime = now;
 				showPlayerSubPhase++;
 				break;
 
 			case 1:
-				// Here you might wait for user input or for a timer to expire
-				// For simplicity, let's just move on when a key is pressed
-				if (_kbhit()) {
-					_getch(); // consume the key
+			{
+				// Animate camera from (startX, startY) to (targetX, targetY)
+				// over subPhaseDuration ms
+				ULONGLONG elapsed = now - subPhaseStartTime;
+				float t = (float)elapsed / (float)subPhaseDuration; // 0 to 1
+
+				if (t >= 1.0f)
+				{
+					// Clamp to final position
+					t = 1.0f;
+
+					// Now set up next sub-phase (P2 -> P1)
 					showPlayerSubPhase++;
+
+					// Start is the camera's current final position
+					startX = targetX;
+					startY = targetY;
+
+					// Target is Player1 again (with P1 offsets)
+					targetX = PLAYER[PLAYER1].xAxis - P1_OFFSET_X;
+					targetY = PLAYER[PLAYER1].yAxis - P1_OFFSET_Y;
+
+					// Reset timer
+					subPhaseStartTime = now;
 				}
-				break;
+
+				// Linear interpolation for camera
+				CAMERA.x = (int)(startX + t * (targetX - startX));
+				CAMERA.y = (int)(startY + t * (targetY - startY));
+			}
+			break;
 
 			case 2:
-				// Center camera on Player2
-				CAMERA.x = PLAYER[PLAYER2].xAxis - 20;
-				CAMERA.y = PLAYER[PLAYER2].yAxis - 5;
-				showPlayerSubPhase++;
-				break;
+			{
+				// Animate camera from P2 -> P1
+				ULONGLONG elapsed = now - subPhaseStartTime;
+				float t = (float)elapsed / (float)subPhaseDuration;
 
-			case 3:
-				// Wait again for user input or timer
-				if (_kbhit()) {
-					_getch();
+				if (t >= 1.0f)
+				{
+					t = 1.0f;
+					// Done with showing players
 					showPlayerSubPhase++;
 				}
-				break;
 
-			case 4:
-				// Finally fix the camera on Player1
-				CAMERA.x = PLAYER[PLAYER1].xAxis - 20;
-				CAMERA.y = PLAYER[PLAYER1].yAxis - 5;
+				CAMERA.x = (int)(startX + t * (targetX - startX));
+				CAMERA.y = (int)(startY + t * (targetY - startY));
+			}
+			break;
 
+			case 3:
 				// Move on to the next phase
 				currentPhase = PLAYER1_MOVING;
 				break;
 			}
 
-			// We draw both players with the camera offset
+			// Draw both players with camera offset
 			DrawTankCamera(PLAYER1);
 			DrawTankCamera(PLAYER2);
 
-			
+			// Since there's no Sleep(), the camera moves in real time,
+			// completing in ~1 second for each segment (based on subPhaseDuration).
 		}
 		break;
 
@@ -245,11 +289,11 @@ void DrawTankCamera(int player)
 
 
 void PlayerInit() {
-	PLAYER[0].xAxis = 10;
-	PLAYER[0].yAxis = 5;
+	PLAYER[0].xAxis = 80;
+	PLAYER[0].yAxis = 50;
 
-	PLAYER[1].xAxis = 50;
-	PLAYER[1].yAxis = 5;
+	PLAYER[1].xAxis = 200;
+	PLAYER[1].yAxis = 50;
 }
 
 void HandleMainGamePlayerInput(int player) {
@@ -284,7 +328,8 @@ void RenderStatusPanel(int x, int y, int player) {
 
 		DrawMultilineToMainScreen(x, y - 4, uiBar, YELLOW);
 		DrawMultilineToMainScreen(x, y + 4, uiBar, YELLOW);
-		DrawToMainScreen(x + 4, y - 2, L"angle");
+		DrawToMainScreen(x + 3, y - 2, L"PLAYER1",MAGENTA);
+		DrawToMainScreen(x + 4, y - 1, L"angle");
 
 		DrawMultilineToMainScreen(x + 2, y, numberUnicodeArt[tens], YELLOW);
 		DrawMultilineToMainScreen(x + 2 + 5, y, numberUnicodeArt[ones], YELLOW);
@@ -293,7 +338,7 @@ void RenderStatusPanel(int x, int y, int player) {
 		DrawToMainScreen(x + 21, y, L"POWER", RED);
 		DrawToMainScreen(x + 22, y + 2, L"MOVE", YELLOW);
 
-		int SliderMaxSize = 75;
+		const int SliderMaxSize = 75;
 
 		int energySliderSize = (PLAYER[PLAYER1].energy * SliderMaxSize) / DEFAULTENERGY;
 		int moveSliderSize = (PLAYER[PLAYER1].move * SliderMaxSize) / DEFAULTMOVE;
@@ -305,8 +350,6 @@ void RenderStatusPanel(int x, int y, int player) {
 		for (int i = 0; i < moveSliderSize; i++) {
 			DrawToMainScreen(x + 30 + i, y + 2, L"█", YELLOW);
 		}
-
-
 	}
 	
 }
