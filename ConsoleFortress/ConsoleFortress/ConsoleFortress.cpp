@@ -48,18 +48,26 @@ void initScreen(Picture& screen);
 void DrawMultilineToMainScreen(int x, int y, const wchar_t* s);
 void DrawMultilineToMainScreen(int x, int y, const wchar_t* s, WORD color);
 void RenderStatusPanel(int x, int y, int player);
-
-
+void PlayerInit();
+void DrawTank(int player);
+void HandlePlayerInput(int player);
 // GameManager Variables
 
 const int DEFAULTENERGY = 100;
 const int DEFAULTMOVE = 10;
 const int MAXARTILLARYANGLE = 75;
 
+struct Camera
+{
+	int x = 0;
+	int y = 0;
+};
+
+Camera CAMERA;
 
 struct Player {
-	int xAxis = 5;
-	int yAxis = 5;
+	int xAxis;
+	int yAxis;
 	int energy = DEFAULTENERGY;
 	int move = DEFAULTMOVE;
 	int artillaryPower = 0;
@@ -67,78 +75,128 @@ struct Player {
 };
 Player PLAYER[2];
 
+GamePhase currentPhase = MAIN_MENU;
+
+
 const int PLAYER1 = 0;
 const int PLAYER2 = 1;
 
 enum GamePhase {
-	PHASE_SHOW_PLAYER,
-	PHASE_PLAYER1_TURN,
-	PHASE_WAIT_PLAYER1_PROJECTILE,
-	PHASE_PLAYER2_TURN,
-	PHASE_WAIT_PLAYER2_PROJECTILE,
+	MAIN_MENU,
+	SHOW_PLAYER,
+	PLAYER1_MOVING,
+	PLAYER1_SHOOTING,
+	PLAYER1_ANGLE,
+	WAIT_PLAYER1_PROJECTILE,
+	PLAYER2_MOVING,
+	PLAYER2_SHOOTING,
+	PLAYER2_TURN,
+	WAIT_PLAYER2_PROJECTILE,
 	GAME_OVER
 };
+
+
 
 int main(void)
 {
 	CursorView(GetStdHandle(STD_OUTPUT_HANDLE), false);
-
 	ScreenInit();
 
-	int x = 5, y = 40;
-	
+	PlayerInit();
 
-	DrawMultilineToMainScreen(x, y, tankUnicodeArt[int(PLAYER[0].artillaryAngle / 15)], GREEN);
+	DrawTank(PLAYER1);
+	DrawTank(PLAYER2);
 	DrawScreen();
 
-	
-
-	while (1)
+	// Main game loop with switch-case for phases
+	while (true)
 	{
-		//input -----------------------------------
-		int key = Getkey();
+		switch (currentPhase)
+		{
+		case MAIN_MENU:
+			// TODO: fill in main menu logic
+			// Example:
+			// HandlePlayerInput(0);
+			// RenderStatusPanel(...);
+			break;
 
+		case SHOW_PLAYER:
+			// TODO: fill in logic to show player on screen
+			break;
 
-		if (key == KEY_LEFT && PLAYER[0].move > 0) {
-			if (x > 0) x = x - 1; 
-			if (PLAYER[0].move > 0) {
-				PLAYER[0].move--;
-			}
+		case PLAYER1_MOVING:
+			// TODO: fill in player1 moving logic
+			// Example usage:
+			HandlePlayerInput(PLAYER1);
+			RenderStatusPanel(0, 50, PLAYER1);
+			break;
 
-		}	// 좌 방향키
-		if (key == KEY_RIGHT && PLAYER[0].move > 0){
-			if (x < Y_PIXELS) x = x + 1; 
-			if (PLAYER[0].move > 0) {
-				PLAYER[0].move--;
-			}
+		case PLAYER1_ANGLE:
+			// TODO: fill in adjusting angle logic
+			break;
 
-		}	// 우 방향키
-		if (key == KEY_UP) {
-			PLAYER[0].artillaryAngle += 1;
-			if (PLAYER[0].artillaryAngle > MAXARTILLARYANGLE) 	PLAYER[0].artillaryAngle = MAXARTILLARYANGLE;
-			if (PLAYER[0].energy > 0) PLAYER[0].energy--;
-		}	
+		case PLAYER1_SHOOTING:
+			// TODO: fill in shooting logic
+			break;
 
+		case WAIT_PLAYER1_PROJECTILE:
+			// TODO: fill in waiting for projectile logic
+			break;
 
-		if (key == KEY_DOWN) {
-			PLAYER[0].artillaryAngle -= 1; 
-			if (PLAYER[0].artillaryAngle < 0) PLAYER[0].artillaryAngle = 0; 
-			if (PLAYER[0].energy > 0) PLAYER[0].energy--;
-		}	// 하 방향키
+		case PLAYER2_TURN:
+			// TODO: fill in player2 turn logic
+			break;
 
-		//-----------------------------------------
+		case WAIT_PLAYER2_PROJECTILE:
+			// TODO: fill in waiting for player2 projectile logic
+			break;
 
-		DrawMultilineToMainScreen(x, y, tankUnicodeArt[int(PLAYER[0].artillaryAngle / 15)], GREEN);
+		case GAME_OVER:
+			// TODO: fill in game over logic
+			// Possibly break out of the loop or wait for input
+			break;
+		}
 
-		RenderStatusPanel(0 , 50, PLAYER1);
-
-		//display ---------------------------------
-
-		// HandleConsoleKeyBoardInput();
+		// Render after each phase logic
 		DrawScreen();
-
 	}
 	return 0;
+}
+
+void DrawTank(int Player) {
+	DrawMultilineToMainScreen(PLAYER[Player].xAxis - 7, PLAYER[Player].yAxis - 3, tankUnicodeArt[int(PLAYER[Player].artillaryAngle / 15)], GREEN);
+}
+
+
+void PlayerInit() {
+	PLAYER[0].xAxis = 5;
+	PLAYER[0].yAxis = 5;
+
+	PLAYER[1].xAxis = 50;
+	PLAYER[1].yAxis = 5;
+}
+
+void HandlePlayerInput(int player) {
+
+	int key = Getkey();
+
+	if (key == KEY_LEFT && PLAYER[player].move > 0) {
+		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis--;
+		if (PLAYER[player].move > 0) {
+			PLAYER[player].move--;
+		}
+
+	}	// 좌 방향키
+	if (key == KEY_RIGHT && PLAYER[player].move > 0) {
+		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis++;
+		if (PLAYER[player].move > 0) {
+			PLAYER[player].move--;
+		}
+
+	}	// 우 방향키
+	if (key == KEY_SPACE) {
+		
+	}
 }
 
 void RenderStatusPanel(int x, int y, int player) {
