@@ -2,9 +2,20 @@
 #include <conio.h>
 #include "KeyCodes.h"
 #include "Color.h"
+#include "Tank.h"
+#include "Numbers.h"
+#include "UI.h"
+
+
+
 
 #define X_PIXELS 2000
 #define Y_PIXELS 500
+
+
+
+
+// Panel Rendering
 
 
 struct Picture {
@@ -14,36 +25,47 @@ struct Picture {
 
 Picture MainScreen;
 
-HANDLE g_hScreen[2]; //두 개의 화면버퍼를 담을 배열
+
+HANDLE g_hScreen[2];
 int screen_cur = 0;
 
-int Getkey(void);								//키입력
-void PrintPos(int x, int y, const char* s);		//특정위치 출력
 
-void CursorView(HANDLE hConsole, char show);	//커서숨기기
+// Function Prototypes
 
+int Getkey(void);								
+void PrintPos(int x, int y, const char* s);	
+void CursorView(HANDLE hConsole, char show);
 void ScreenInit();
-void ScreenStart();								//스크린 
-void ScreenEnd();								//스크린 
-void ScreenClear(HANDLE hConsole);				//스크린 클리어
+void ScreenStart();								
+void ScreenEnd();								
+void ScreenClear(HANDLE hConsole);				
 void DrawUnicodeFast(HANDLE hConsole, wchar_t picture[Y_PIXELS][X_PIXELS], WORD colors[Y_PIXELS][X_PIXELS]);
 void DrawScreen(void);
-void DrawToPicture(int x, int y, const wchar_t* s);
-void DrawToPicture(int x, int y, const wchar_t* s, WORD color);
+void DrawToMainScreen(int x, int y, const wchar_t* s);
+void DrawToMainScreen(int x, int y, const wchar_t* s, WORD color);
 void ClearPictureCell(int x, int y);
 void initScreen(Picture& screen);
-void DrawMultilineToPicture(int x, int y, const wchar_t* s);
-void DrawMultilineToPicture(int x, int y, const wchar_t* s, WORD color);
+void DrawMultilineToMainScreen(int x, int y, const wchar_t* s);
+void DrawMultilineToMainScreen(int x, int y, const wchar_t* s, WORD color);
+void RenderStatusPanel(int x, int y, int player);
 
 
+// GameManager Variables
 
-const wchar_t* tank =
-L"     _____       \n"
-L"    /     \\-----\n"
-L"/¯¯¯       ¯¯¯\\ \n"
-L"\\_____________/ \n"
-L" \\0_0_0_0_0_0/  \n";
+const int DEFAULTENERGY = 100;
+const int DEFAULTMOVE = 10;
+const int MAXARTILLARYANGLE = 75;
 
+struct Player {
+	int energy = DEFAULTENERGY;
+	int move = DEFAULTMOVE;
+	int artillaryPower = 0;
+	float artillaryAngle = 0.0f;
+};
+Player PLAYER[2];
+
+const int PLAYER1 = 0;
+const int PLAYER2 = 1;
 
 
 
@@ -53,33 +75,85 @@ int main(void)
 
 	ScreenInit();
 
-	int x = 5, y = 5;
+	int x = 5, y = 40;
+	
 
-	DrawMultilineToPicture(x, y, tank, GREEN);
+	DrawMultilineToMainScreen(x, y, tankUnicodeArt[int(PLAYER[0].artillaryAngle / 15)], GREEN);
 	DrawScreen();
+
+	
 
 	while (1)
 	{
 		//input -----------------------------------
 		int key = Getkey();
+
+
 		if (key == KEY_LEFT) { if (x > 0) x = x - 1; }	// 좌 방향키
-		if (key == KEY_RIGHT) { if (x < 200) x = x + 1; }	// 우 방향키
-		if (key == KEY_UP) { if (y > 0) y = y - 1; }	// 상 방향키
-		if (key == KEY_DOWN) { if (y < 200) y = y + 1; }	// 하 방향키
+		if (key == KEY_RIGHT) { if (x < Y_PIXELS) x = x + 1; }	// 우 방향키
+		if (key == KEY_UP) {
+			PLAYER[0].artillaryAngle += 1;
+			if (PLAYER[0].artillaryAngle > MAXARTILLARYANGLE) 	PLAYER[0].artillaryAngle = MAXARTILLARYANGLE;
+			if (PLAYER[0].energy > 0) PLAYER[0].energy--;
+		}	
+
+
+		if (key == KEY_DOWN) {
+			PLAYER[0].artillaryAngle -= 1; 
+			if (PLAYER[0].artillaryAngle < 0) PLAYER[0].artillaryAngle = 0; 
+			if (PLAYER[0].energy > 0) PLAYER[0].energy--;
+		}	// 하 방향키
 
 		//-----------------------------------------
 
-		DrawMultilineToPicture(x, y, tank, GREEN);
+		DrawMultilineToMainScreen(x, y, tankUnicodeArt[int(PLAYER[0].artillaryAngle / 15)], GREEN);
+
+		RenderStatusPanel(0 , 50, PLAYER1);
 
 		//display ---------------------------------
 
 		// HandleConsoleKeyBoardInput();
-		DrawScreen();	
+		DrawScreen();
 
 	}
 	return 0;
 }
 
+void RenderStatusPanel(int x, int y, int player) {
+	if (player == PLAYER1) {
+		int angle = (int)(PLAYER[PLAYER1].artillaryAngle);
+
+		int tens = angle / 10;
+		int ones = angle % 10;
+
+		DrawMultilineToMainScreen(x, y - 4, uiBar, YELLOW);
+		DrawMultilineToMainScreen(x, y + 4, uiBar, YELLOW);
+		DrawToMainScreen(x + 4, y - 2, L"angle");
+
+		DrawMultilineToMainScreen(x + 2, y, numberUnicodeArt[tens], YELLOW);
+		DrawMultilineToMainScreen(x + 2 + 5, y, numberUnicodeArt[ones], YELLOW);
+
+		DrawToMainScreen(x + 20, y - 2, L"ENERGY", GREEN);
+		DrawToMainScreen(x + 21, y, L"POWER", RED);
+		DrawToMainScreen(x + 22, y + 2, L"MOVE", YELLOW);
+
+		int SliderMaxSize = 75;
+
+		int energySliderSize = (PLAYER[PLAYER1].energy * SliderMaxSize) / DEFAULTENERGY;
+		int moveSliderSize = (PLAYER[PLAYER1].move * SliderMaxSize) / DEFAULTMOVE;
+
+		for (int i = 0; i < energySliderSize; i++) {
+			DrawToMainScreen(x + 30 + i, y - 2, L"█", GREEN);
+		}
+
+		for (int i = 0; i < moveSliderSize; i++) {
+			DrawToMainScreen(x + 30 + i, y + 2, L"█", YELLOW);
+		}
+
+
+	}
+	
+}
 
 
 
@@ -121,6 +195,8 @@ void ScreenInit() {
 
 	CursorView(g_hScreen[0], false);
 	CursorView(g_hScreen[1], false);
+
+	RenderStatusPanel(0, 50, PLAYER1);
 }
 
 void ScreenStart() {
@@ -188,11 +264,11 @@ void initScreen(Picture& screen) {
 }
 
 
-void DrawToPicture(int x, int y, const wchar_t* s) {
-	DrawToPicture(x, y, s, 0x000F);
+void DrawToMainScreen(int x, int y, const wchar_t* s) {
+	DrawToMainScreen(x, y, s, 0x000F);
 }
 
-void DrawToPicture(int x, int y, const wchar_t* s, WORD color) {
+void DrawToMainScreen(int x, int y, const wchar_t* s, WORD color) {
 	if (y < 0 || y >= Y_PIXELS) return;
 
 	int i = 0;
@@ -215,10 +291,10 @@ void ClearPictureCell(int x, int y) {
 	// Reset the color attribute to default (white on black).
 	MainScreen.color[y][x] = 0x000F;
 }
-void DrawMultilineToPicture(int x, int y, const wchar_t* s) {
-	DrawMultilineToPicture(x, y, s, 0x000F);
+void DrawMultilineToMainScreen(int x, int y, const wchar_t* s) {
+	DrawMultilineToMainScreen(x, y, s, 0x000F);
 }
-void DrawMultilineToPicture(int x, int y, const wchar_t* s, WORD color = 0x000F) {
+void DrawMultilineToMainScreen(int x, int y, const wchar_t* s, WORD color = 0x000F) {
 	int cur_x = x;
 	int cur_y = y;
 	for (int i = 0; s[i] != L'\0'; i++) {
