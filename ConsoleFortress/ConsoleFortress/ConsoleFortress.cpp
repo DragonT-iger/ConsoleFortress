@@ -89,8 +89,20 @@ int main(void)
 		int key = Getkey();
 
 
-		if (key == KEY_LEFT) { if (x > 0) x = x - 1; }	// 좌 방향키
-		if (key == KEY_RIGHT) { if (x < Y_PIXELS) x = x + 1; }	// 우 방향키
+		if (key == KEY_LEFT && PLAYER[0].move > 0) {
+			if (x > 0) x = x - 1; 
+			if (PLAYER[0].move > 0) {
+				PLAYER[0].move--;
+			}
+
+		}	// 좌 방향키
+		if (key == KEY_RIGHT && PLAYER[0].move > 0){
+			if (x < Y_PIXELS) x = x + 1; 
+			if (PLAYER[0].move > 0) {
+				PLAYER[0].move--;
+			}
+
+		}	// 우 방향키
 		if (key == KEY_UP) {
 			PLAYER[0].artillaryAngle += 1;
 			if (PLAYER[0].artillaryAngle > MAXARTILLARYANGLE) 	PLAYER[0].artillaryAngle = MAXARTILLARYANGLE;
