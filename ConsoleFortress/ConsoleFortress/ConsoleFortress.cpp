@@ -1,5 +1,6 @@
 ﻿#include <windows.h>
 #include <conio.h>
+#include <math.h>
 #include "KeyCodes.h"
 #include "Color.h"
 #include "Tank.h"
@@ -51,13 +52,16 @@ void RenderStatusPanel(int x, int y, int player);
 void PlayerInit();
 void DrawTankCamera(int player);
 void HandleMainGamePlayerInput(int player);
+int ballistics(int player);
 
 
 // GameManager Variables
 
-const int DEFAULTENERGY = 100;
-const int DEFAULTMOVE = 10;
-const int MAXARTILLARYANGLE = 75;
+const double DEFAULTENERGY = 100;
+const int DEFAULTMOVE = 1000;
+const double MAXARTILLARYANGLE = 89;
+const double MAXARTILLARYPOWER = 10;
+const double MAXARTILLARYWIND = 0.2;
 
 struct Camera
 {
@@ -72,18 +76,20 @@ struct Player {
 	int yAxis;
 	int energy = DEFAULTENERGY;
 	int move = DEFAULTMOVE;
-	int artillaryPower = 0;
-	float artillaryAngle = 0.0f;
+	double artillaryPower = 0;
+	double artillaryAngle = 0;
 };
 Player PLAYER[2];
 
 const int PLAYER1 = 0;
 const int PLAYER2 = 1;
 
-const int P1_OFFSET_X = 0;
-const int P1_OFFSET_Y = 0;
-const int P2_OFFSET_X = 0;
-const int P2_OFFSET_Y = 0;
+// 이거 바꾸면 위아래 기본값 조절가능
+
+const int P1_OFFSET_X = 50;
+const int P1_OFFSET_Y = 30;
+const int P2_OFFSET_X = 80;
+const int P2_OFFSET_Y = 30;
 
 enum GamePhase {
 	MAIN_MENU,
@@ -101,6 +107,16 @@ enum GamePhase {
 
 GamePhase currentPhase = SHOW_PLAYER;
 
+// 포탄 관련
+
+double gravity = -0.1;
+double wind = -0.05;
+bool isCharged = false;
+double bulletHor = 0;
+double bulletVer = 0;
+double bulletTimer = 0;
+double PI = 3.14159265358979323846;
+double tankRotation = 0;
 
 int main(void)
 {
@@ -119,68 +135,64 @@ int main(void)
 			// Example:
 			// HandlePlayerInput(0);
 			// RenderStatusPanel(...);
+			
 			break;
 
 		case SHOW_PLAYER:
 		{
-			/*
-			 * Sub-phase approach (time-based):
-			 *   0) Instantly place camera on Player1
-			 *   1) Animate camera from P1 -> P2 over 1 second
-			 *   2) Animate camera from P2 -> P1 over 1 second
-			 *   3) Move to next phase
-			 */
 
 			static int showPlayerSubPhase = 0;
+			static const int waitDuration = 2000;
 
-			// We'll use these to store animation info
 			static const ULONGLONG subPhaseDuration = 1000; // 1 second in ms
 			static ULONGLONG subPhaseStartTime = 0;
 
-			// Start/end positions for camera each sub-phase
 			static int startX = 0, startY = 0;
 			static int targetX = 0, targetY = 0;
 
 			// Get current time in ms
 			ULONGLONG now = GetTickCount64();
 
+
+
 			switch (showPlayerSubPhase)
 			{
 			case 0:
-				// Instantly place camera on Player1, applying Player1's offsets
+				// Immediately position the camera on Player1 with offsets
 				CAMERA.x = PLAYER[PLAYER1].xAxis - P1_OFFSET_X;
 				CAMERA.y = PLAYER[PLAYER1].yAxis - P1_OFFSET_Y;
 
-				// Prepare for next sub-phase: animate from P1 -> P2
-				startX = CAMERA.x;
-				startY = CAMERA.y;
-				targetX = PLAYER[PLAYER2].xAxis - P2_OFFSET_X;
-				targetY = PLAYER[PLAYER2].yAxis - P2_OFFSET_Y;
+				// Initialize the timer on the first run
+				if (subPhaseStartTime == 0)
+					subPhaseStartTime = now;
 
-				subPhaseStartTime = now;
-				showPlayerSubPhase++;
+				if (now - subPhaseStartTime >= waitDuration)
+				{
+					startX = CAMERA.x;
+					startY = CAMERA.y;
+					targetX = PLAYER[PLAYER2].xAxis - P2_OFFSET_X;
+					targetY = PLAYER[PLAYER2].yAxis - P2_OFFSET_Y;
+
+					// Reset the timer and proceed to the next sub-phase
+					subPhaseStartTime = now;
+					showPlayerSubPhase++;
+				}
 				break;
 
 			case 1:
 			{
-				// Animate camera from (startX, startY) to (targetX, targetY)
-				// over subPhaseDuration ms
 				ULONGLONG elapsed = now - subPhaseStartTime;
-				float t = (float)elapsed / (float)subPhaseDuration; // 0 to 1
+				float t = (float)elapsed / (float)subPhaseDuration; 
 
 				if (t >= 1.0f)
 				{
-					// Clamp to final position
 					t = 1.0f;
 
-					// Now set up next sub-phase (P2 -> P1)
 					showPlayerSubPhase++;
 
-					// Start is the camera's current final position
 					startX = targetX;
 					startY = targetY;
 
-					// Target is Player1 again (with P1 offsets)
 					targetX = PLAYER[PLAYER1].xAxis - P1_OFFSET_X;
 					targetY = PLAYER[PLAYER1].yAxis - P1_OFFSET_Y;
 
@@ -196,25 +208,35 @@ int main(void)
 
 			case 2:
 			{
-				// Animate camera from P2 -> P1
 				ULONGLONG elapsed = now - subPhaseStartTime;
-				float t = (float)elapsed / (float)subPhaseDuration;
-
-				if (t >= 1.0f)
+				// Wait for 2 seconds at Player2 before starting transition to Player1
+				if (elapsed < waitDuration)
 				{
-					t = 1.0f;
-					// Done with showing players
-					showPlayerSubPhase++;
+					// Keep camera at Player2 position during the wait
+					CAMERA.x = startX;
+					CAMERA.y = startY;
 				}
-
-				CAMERA.x = (int)(startX + t * (targetX - startX));
-				CAMERA.y = (int)(startY + t * (targetY - startY));
+				else
+				{
+					// Adjust elapsed time by subtracting the wait duration
+					elapsed -= waitDuration;
+					float t = (float)elapsed / (float)subPhaseDuration;
+					if (t >= 1.0f)
+					{
+						t = 1.0f;
+						showPlayerSubPhase++;
+					}
+					// Linear interpolation for camera position (from Player2 to Player1)
+					CAMERA.x = (int)(startX + t * (targetX - startX));
+					CAMERA.y = (int)(startY + t * (targetY - startY));
+				}
 			}
 			break;
 
 			case 3:
 				// Move on to the next phase
 				currentPhase = PLAYER1_MOVING;
+				RenderStatusPanel(0, 50, PLAYER1);
 				break;
 			}
 
@@ -233,7 +255,6 @@ int main(void)
 			HandleMainGamePlayerInput(PLAYER1);
 			RenderStatusPanel(0, 50, PLAYER1);
 			DrawTankCamera(PLAYER1);
-			DrawTankCamera(PLAYER2);
 			break;
 
 		case PLAYER1_ANGLE:
@@ -271,8 +292,8 @@ int main(void)
 void DrawTankCamera(int player)
 {
 	// We offset the position by CAMERA.x and CAMERA.y
-	int drawX = PLAYER[player].xAxis - CAMERA.x;
-	int drawY = PLAYER[player].yAxis - CAMERA.y;
+	int drawX = PLAYER[player].xAxis - CAMERA.x - (bulletHor * 5);
+	int drawY = PLAYER[player].yAxis - CAMERA.y - (bulletVer * 5);
 
 	// Safety check to avoid drawing out of bounds
 	if (drawX < 0 || drawX >= X_PIXELS || drawY < 0 || drawY >= Y_PIXELS) {
@@ -292,63 +313,149 @@ void PlayerInit() {
 	PLAYER[0].xAxis = 80;
 	PLAYER[0].yAxis = 50;
 
-	PLAYER[1].xAxis = 200;
+	PLAYER[1].xAxis = 300;
 	PLAYER[1].yAxis = 50;
 }
 
 void HandleMainGamePlayerInput(int player) {
 
-	int key = Getkey();
-
-	if (key == KEY_LEFT && PLAYER[player].move > 0) {
+	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis--;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
+			tankRotation = 1;
 		}
 
-	}	// 좌 방향키
-	if (key == KEY_RIGHT && PLAYER[player].move > 0) {
+	}	
+	if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && PLAYER[player].move > 0) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis++;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
+			tankRotation = 0;
 		}
 
-	}	// 우 방향키
-	if (key == KEY_SPACE) {
-		
+	}
+	// 각도 조절
+	if (GetAsyncKeyState(VK_UP) & 0x8000 && PLAYER[player].artillaryAngle < 89)
+	{
+		PLAYER[player].artillaryAngle++;
+	}
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && PLAYER[player].artillaryAngle > 0)
+	{
+		PLAYER[player].artillaryAngle--;
+	}
+	// 발사 준비
+	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+	{
+		if (PLAYER[player].artillaryPower < 10)
+		{
+			PLAYER[player].artillaryPower += 0.01;
+			isCharged = true;
+		}
+	}
+	// 발사
+	else if (isCharged)
+	{
+		isCharged = false;
+		ballistics(player);
+		PLAYER[player].artillaryPower = 0;
+		bulletTimer = 0;
+		// 턴 바꾸는 코드
 	}
 }
 
-void RenderStatusPanel(int x, int y, int player) {
-	if (player == PLAYER1) {
-		int angle = (int)(PLAYER[PLAYER1].artillaryAngle);
-
-		int tens = angle / 10;
-		int ones = angle % 10;
-
-		DrawMultilineToMainScreen(x, y - 4, uiBar, YELLOW);
-		DrawMultilineToMainScreen(x, y + 4, uiBar, YELLOW);
-		DrawToMainScreen(x + 3, y - 2, L"PLAYER1",MAGENTA);
-		DrawToMainScreen(x + 4, y - 1, L"angle");
-
-		DrawMultilineToMainScreen(x + 2, y, numberUnicodeArt[tens], YELLOW);
-		DrawMultilineToMainScreen(x + 2 + 5, y, numberUnicodeArt[ones], YELLOW);
-
-		DrawToMainScreen(x + 20, y - 2, L"ENERGY", GREEN);
-		DrawToMainScreen(x + 21, y, L"POWER", RED);
-		DrawToMainScreen(x + 22, y + 2, L"MOVE", YELLOW);
-
-		const int SliderMaxSize = 75;
-
-		int energySliderSize = (PLAYER[PLAYER1].energy * SliderMaxSize) / DEFAULTENERGY;
-		int moveSliderSize = (PLAYER[PLAYER1].move * SliderMaxSize) / DEFAULTMOVE;
-
-		for (int i = 0; i < energySliderSize; i++) {
-			DrawToMainScreen(x + 30 + i, y - 2, L"█", GREEN);
+// 탄도
+static int ballistics(int player)
+{
+	bulletHor = 0;
+	bulletVer = 0;
+	while (bulletVer + PLAYER[player].yAxis < 70)
+	{
+		bulletTimer += 0.1;
+		bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
+		bulletVer = PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180)))) - ((gravity * pow(bulletTimer, 2)) / 2);
+		if (tankRotation)
+		{
+			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
 		}
+		else
+		{
+			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
+		}
+		DrawTankCamera(PLAYER1);
+		DrawScreen();
+	}
+	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", RED);
+	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", RED);
+	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", RED);
+	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", RED);
+	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", RED);
+	DrawTankCamera(PLAYER1);
+	DrawScreen();
+	Sleep(1000);
+	bulletHor = 0;
+	bulletVer = 0;
+	return 0;
+}
 
-		for (int i = 0; i < moveSliderSize; i++) {
-			DrawToMainScreen(x + 30 + i, y + 2, L"█", YELLOW);
+void RenderStatusPanel(int x, int y, int player) {
+	for (int i = 0; i < 2; i++) {
+		if (player == i) {
+			int angle = (int)(PLAYER[i].artillaryAngle);
+
+			int tens = angle / 10;
+			int ones = angle % 10;
+
+			DrawMultilineToMainScreen(x, y - 4, uiBar, YELLOW);
+			DrawMultilineToMainScreen(x, y + 4, uiBar, YELLOW);
+			if (i == 0) {
+				DrawToMainScreen(x + 3, y - 2, L"PLAYER1", MAGENTA);
+			}
+			if (i == 1) {
+				DrawToMainScreen(x + 3, y - 2, L"PLAYER2", MAGENTA);
+			}
+			DrawToMainScreen(x + 4, y - 1, L"angle");
+
+			DrawMultilineToMainScreen(x + 2, y, numberUnicodeArt[tens], YELLOW);
+			DrawMultilineToMainScreen(x + 2 + 5, y, numberUnicodeArt[ones], YELLOW);
+
+			DrawToMainScreen(x + 20, y - 2, L"ENERGY", GREEN);
+			DrawToMainScreen(x + 21, y, L"POWER", RED);
+			DrawToMainScreen(x + 22, y + 2, L"MOVE", YELLOW);
+			if (wind > 0)
+			{
+				DrawToMainScreen(x + 120, y - 2, L"WIND ->", CYAN);
+			}
+			else
+			{
+				DrawToMainScreen(x + 120, y - 2, L"WIND <-", CYAN);
+			}
+
+			const int SliderMaxSize = 75;
+
+			int energySliderSize = (PLAYER[i].energy * SliderMaxSize) / DEFAULTENERGY;
+			int moveSliderSize = (PLAYER[i].move * SliderMaxSize) / DEFAULTMOVE;
+			int powerSliderSize = (PLAYER[i].artillaryPower * SliderMaxSize) / MAXARTILLARYPOWER;
+			int windSliderSize = (fabs(wind) * 25) / MAXARTILLARYWIND;
+
+			for (int i = 0; i < energySliderSize; i++) {
+				DrawToMainScreen(x + 30 + i, y - 2, L"█", GREEN);
+			}
+
+			for (int i = 0; i < moveSliderSize; i++) {
+				DrawToMainScreen(x + 30 + i, y + 2, L"█", YELLOW);
+			}
+
+			for (int i = 0; i < powerSliderSize; i++)
+			{
+				DrawToMainScreen(x + 30 + i, y, L"█", RED);
+			}
+
+			for (int i = 0; i < windSliderSize; i++)
+			{
+				DrawToMainScreen(x + 120 + i, y - 1, L"█", BLUE);
+			}
+
 		}
 	}
 	
