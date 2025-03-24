@@ -12,9 +12,6 @@
 #define X_PIXELS 2000
 #define Y_PIXELS 500
 
-
-
-
 // Panel Rendering
 
 
@@ -24,6 +21,8 @@ struct Picture {
 };
 
 Picture MainScreen;
+
+
 
 
 HANDLE g_hScreen[2];
@@ -51,6 +50,7 @@ void RenderStatusPanel(int x, int y, int player);
 void PlayerInit();
 void DrawTankCamera(int player);
 void HandleMainGamePlayerInput(int player);
+void PrintFloor();
 
 
 // GameManager Variables
@@ -61,8 +61,8 @@ const int MAXARTILLARYANGLE = 75;
 
 struct Camera
 {
-	int x = -80;
-	int y = 50;
+	int x = 0;
+	int y = 0;
 };
 
 Camera CAMERA;
@@ -102,6 +102,9 @@ enum GamePhase {
 };
 
 GamePhase currentPhase = SHOW_PLAYER;
+
+bool IS_FLOOR[4][Y_PIXELS];
+
 
 
 int main(void)
@@ -144,11 +147,9 @@ int main(void)
 			switch (showPlayerSubPhase)
 			{
 			case 0:
-				// Immediately position the camera on Player1 with offsets
 				CAMERA.x = PLAYER[PLAYER1].xAxis - P1_OFFSET_X;
 				CAMERA.y = PLAYER[PLAYER1].yAxis - P1_OFFSET_Y;
 
-				// Initialize the timer on the first run
 				if (subPhaseStartTime == 0)
 					subPhaseStartTime = now;
 
@@ -159,7 +160,6 @@ int main(void)
 					targetX = PLAYER[PLAYER2].xAxis - P2_OFFSET_X;
 					targetY = PLAYER[PLAYER2].yAxis - P2_OFFSET_Y;
 
-					// Reset the timer and proceed to the next sub-phase
 					subPhaseStartTime = now;
 					showPlayerSubPhase++;
 				}
@@ -229,6 +229,7 @@ int main(void)
 			// Draw both players with camera offset
 			DrawTankCamera(PLAYER1);
 			DrawTankCamera(PLAYER2);
+			PrintFloor();
 
 			// Since there's no Sleep(), the camera moves in real time,
 			// completing in ~1 second for each segment (based on subPhaseDuration).
@@ -241,6 +242,7 @@ int main(void)
 			HandleMainGamePlayerInput(PLAYER1);
 			RenderStatusPanel(0, 50, PLAYER1);
 			DrawTankCamera(PLAYER1);
+			PrintFloor();
 			break;
 
 		case PLAYER1_ANGLE:
@@ -409,6 +411,12 @@ void ScreenInit() {
 
 	CursorView(g_hScreen[0], false);
 	CursorView(g_hScreen[1], false);
+
+	for (int i = 0; i < 4; i++) { 
+		for (int j = 0; j < Y_PIXELS; j++) {
+			IS_FLOOR[i][j] = true;
+		}
+	}
 }
 
 void ScreenStart() {
@@ -521,5 +529,18 @@ void DrawMultilineToMainScreen(int x, int y, const wchar_t* s, WORD color = 0x00
 			}
 			cur_x++;
 		}
+	}
+}
+
+void PrintFloor() {
+	wchar_t line[Y_PIXELS + 1];
+
+	for (int row = 0; row < 4; row++) {
+		for (int col = 0; col < Y_PIXELS; col++) {
+			line[col] = IS_FLOOR[row][col] ? L'█' : L' ';
+		}
+		line[Y_PIXELS] = L'\0';
+
+		DrawMultilineToMainScreen(0, 37 + row, line, GREEN);
 	}
 }
