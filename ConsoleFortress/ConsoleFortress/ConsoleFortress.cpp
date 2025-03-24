@@ -1,5 +1,6 @@
 ﻿#include <windows.h>
 #include <conio.h>
+#include <cmath>
 #include "KeyCodes.h"
 #include "Color.h"
 #include "Tank.h"
@@ -110,7 +111,9 @@ void PlayerInit();
 void DrawTankCamera(int player);
 void HandleMainGamePlayerInput(int player);
 void PrintFloor();
-void UpdatePlayerAngle(int PLAYER1);
+void UpdatePlayerAngle(int player);
+void UpdatePlayerPower(int player);
+void ShootBullet(int player);
 
 // GameManager Variables
 
@@ -295,33 +298,36 @@ int main(void)
         {
             HandleMainGamePlayerInput(PLAYER1);
             RenderStatusPanel(0, 50, PLAYER1);
-            UpdatePlayerAngle(PLAYER1);
 
-            static bool increasing = true;
-            const float delta = 1.0f;
+            static ULONGLONG lastUpdateTime = 0;
+            ULONGLONG currentTime = GetTickCount64();
 
-            if (increasing) {
-                PLAYER[0].artillaryAngle += delta;
-                if (PLAYER[0].artillaryAngle >= 75.0f) {
-                    PLAYER[0].artillaryAngle = 75.0f;
-                    increasing = false;
-                }
-            }
-            else {
-                PLAYER[0].artillaryAngle -= delta;
-                if (PLAYER[0].artillaryAngle <= 0.0f) {
-                    PLAYER[0].artillaryAngle = 0.0f;
-                    increasing = true;
-                }
+            if (currentTime - lastUpdateTime >= 20)
+            {
+                UpdatePlayerAngle(PLAYER1);
+                lastUpdateTime = currentTime;
             }
         }
         break;
 
         case PLAYER1_SHOOTING:
-            // TODO: fill in shooting logic
-            break;
+        {
+            HandleMainGamePlayerInput(PLAYER1);
+            RenderStatusPanel(0, 50, PLAYER1);
+            static ULONGLONG lastUpdateTime = 0;
+            ULONGLONG currentTime = GetTickCount64();
+
+            if (currentTime - lastUpdateTime >= 20)
+            {
+                UpdatePlayerPower(PLAYER1);
+                lastUpdateTime = currentTime;
+            }
+        }
+        break;
 
         case WAIT_PLAYER1_PROJECTILE:
+            RenderStatusPanel(0, 50, PLAYER1);
+            ShootBullet(PLAYER1);
             // TODO: fill in waiting for projectile logic
             break;
 
@@ -405,8 +411,10 @@ void HandleMainGamePlayerInput(int player)
             currentPhase = PLAYER1_ANGLE;
             break;
         case PLAYER1_ANGLE:
+            currentPhase = PLAYER1_SHOOTING;
             break;
         case PLAYER1_SHOOTING:
+            currentPhase = WAIT_PLAYER1_PROJECTILE;
             break;
         case WAIT_PLAYER1_PROJECTILE:
             break;
@@ -464,6 +472,10 @@ void RenderStatusPanel(int x, int y, int player) {
 
             for (int j = 0; j < moveSliderSize; j++) {
                 DrawToMainScreen(x + 30 + j, y + 2, L"█", YELLOW);
+            }
+
+            for (int j = 0; j < PLAYER[i].artillaryPower; j++) {
+                DrawToMainScreen(x + 30 + j, y, L"█", RED);
             }
         }
     }
@@ -639,8 +651,8 @@ void UpdatePlayerAngle(int player) {
     if (increasing) {
         PLAYER[player].artillaryAngle += delta;
         // When the angle reaches or exceeds 90, clamp it and change direction
-        if (PLAYER[player].artillaryAngle >= 90.0f) {
-            PLAYER[player].artillaryAngle = 90.0f;
+        if (PLAYER[player].artillaryAngle >= 75.0f) {
+            PLAYER[player].artillaryAngle = 75.0f;
             increasing = false;
         }
     }
@@ -651,5 +663,45 @@ void UpdatePlayerAngle(int player) {
             PLAYER[player].artillaryAngle = 0.0f;
             increasing = true;
         }
+    }
+}
+
+void UpdatePlayerPower(int player) {
+    static bool increasing = true; 
+    const int delta = 1;      
+
+    if (increasing) {
+        PLAYER[player].artillaryPower += delta;
+        if (PLAYER[player].artillaryPower >= 75) {
+            PLAYER[player].artillaryPower = 75;
+            increasing = false;
+        }
+    }
+    else {
+        PLAYER[player].artillaryPower -= delta;
+        if (PLAYER[player].artillaryPower <= 0) {
+            PLAYER[player].artillaryPower = 0;
+            increasing = true;
+        }
+    }
+}
+
+void ShootBullet(int player) {
+    float angleRad = PLAYER[player].artillaryAngle * (3.1415926f / 180.0f);
+
+    static float velocityX = PLAYER[player].artillaryPower * cos(angleRad);
+    velocityX += velocityX;
+    static float velocityY = PLAYER[player].artillaryPower * sin(angleRad);
+    velocityY += velocityY;
+
+    if (player == PLAYER1) {
+        float bulletStartX = (float)PLAYER[player].xAxis - P1_OFFSET_X;
+        float bulletStartY = (float)PLAYER[player].yAxis - P1_OFFSET_Y;
+        DrawMultilineToMainScreen(bulletStartX + velocityX, bulletStartY - velocityY, bullet);
+    }
+    if (player == PLAYER2) {
+        float bulletStartX = (float)PLAYER[player].xAxis - P2_OFFSET_X;
+        float bulletStartY = (float)PLAYER[player].yAxis - P2_OFFSET_Y;
+        DrawMultilineToMainScreen(bulletStartX - velocityX, bulletStartY - velocityY, bullet);
     }
 }
