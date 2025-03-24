@@ -5,6 +5,7 @@
 #include "Tank.h"
 #include "Numbers.h"
 #include "UI.h"
+#include "MainMenu.h"
 
 
 
@@ -32,13 +33,13 @@ int screen_cur = 0;
 
 // Function Prototypes
 
-int Getkey(void);								
-void PrintPos(int x, int y, const char* s);	
+int Getkey(void);
+void PrintPos(int x, int y, const char* s);
 void CursorView(HANDLE hConsole, char show);
 void ScreenInit();
-void ScreenStart();								
-void ScreenEnd();								
-void ScreenClear(HANDLE hConsole);				
+void ScreenStart();
+void ScreenEnd();
+void ScreenClear(HANDLE hConsole);
 void DrawUnicodeFast(HANDLE hConsole, wchar_t picture[Y_PIXELS][X_PIXELS], WORD colors[Y_PIXELS][X_PIXELS]);
 void DrawScreen(void);
 void DrawToMainScreen(int x, int y, const wchar_t* s);
@@ -51,6 +52,7 @@ void RenderStatusPanel(int x, int y, int player);
 void PlayerInit();
 void DrawTankCamera(int player);
 void HandleMainGamePlayerInput(int player);
+void MainMenu();
 
 
 // GameManager Variables
@@ -101,7 +103,7 @@ enum GamePhase {
 	GAME_OVER
 };
 
-GamePhase currentPhase = SHOW_PLAYER;
+GamePhase currentPhase = MAIN_MENU;
 
 
 int main(void)
@@ -121,7 +123,8 @@ int main(void)
 			// Example:
 			// HandlePlayerInput(0);
 			// RenderStatusPanel(...);
-			
+			MainMenu();
+
 			break;
 
 		case SHOW_PLAYER:
@@ -168,7 +171,7 @@ int main(void)
 			case 1:
 			{
 				ULONGLONG elapsed = now - subPhaseStartTime;
-				float t = (float)elapsed / (float)subPhaseDuration; 
+				float t = (float)elapsed / (float)subPhaseDuration;
 
 				if (t >= 1.0f)
 				{
@@ -313,16 +316,16 @@ void HandleMainGamePlayerInput(int player) {
 			PLAYER[player].move--;
 		}
 
-	}	
+	}
 	if (key == KEY_RIGHT && PLAYER[player].move > 0) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis++;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
 		}
 
-	}	
+	}
 	if (key == KEY_SPACE) {
-		
+
 	}
 }
 
@@ -366,7 +369,7 @@ void RenderStatusPanel(int x, int y, int player) {
 
 		}
 	}
-	
+
 }
 
 
@@ -521,5 +524,79 @@ void DrawMultilineToMainScreen(int x, int y, const wchar_t* s, WORD color = 0x00
 			}
 			cur_x++;
 		}
+	}
+}
+
+void MainMenu()
+{
+	initScreen(MainScreen);
+
+	int key = 0;
+	int menuX = 45;
+	int menuY = 22;
+	ULONGLONG curTime = 0;
+	ULONGLONG preTime = 0;
+	bool blinkFlag = true;
+	ULONGLONG loopBullet = 0;
+
+	//while (_kbhit()) _getch(); //버퍼에 있는 키값을 버림 
+
+	while (1)
+	{
+		curTime = GetTickCount64();
+
+		if (curTime - preTime >= 400)
+		{
+			blinkFlag = !blinkFlag;
+			preTime = curTime;
+
+			DrawMultilineToMainScreen(40, 10, tankUnicodeArt[4], GREEN);
+			if (loopBullet % 3 == 0)
+			{
+				DrawMultilineToMainScreen(55, 8, mainMenuArt[2], GREEN);
+				loopBullet++;
+			}
+			else if (loopBullet % 3 == 1)
+			{
+				DrawMultilineToMainScreen(65, 3, mainMenuArt[2], GREEN);
+				loopBullet++;
+			}
+			else if (loopBullet % 3 == 2)
+			{
+				DrawMultilineToMainScreen(75, 8, mainMenuArt[2], GREEN);
+				loopBullet++;
+			}
+
+			if (blinkFlag)
+			{
+				DrawMultilineToMainScreen(menuX, menuY, mainMenuArt[0], YELLOW);
+				DrawMultilineToMainScreen(menuX+5, menuY + 3, mainMenuArt[3], YELLOW);
+
+				DrawScreen();
+			}
+
+			else
+			{
+				DrawMultilineToMainScreen(menuX, menuY, mainMenuArt[1], YELLOW);
+				DrawMultilineToMainScreen(menuX+5, menuY + 3, mainMenuArt[4], YELLOW);
+
+				DrawScreen();
+			}
+
+
+
+		}
+
+		if (_kbhit()) {			//키입력받음 
+			key = _getch();
+			if (key == KEY_ESC)	exit(0);	// ESC키면 종료 
+			else
+			{
+				currentPhase = SHOW_PLAYER;
+				break;		// 아니면 그냥 계속 진행 
+			}
+		}
+
+		Sleep(50);
 	}
 }
