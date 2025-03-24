@@ -13,7 +13,69 @@
 #define X_PIXELS 2000
 #define Y_PIXELS 500
 
+// ===========================================================
+// Added: Asynchronous Input Handling
+// ===========================================================
+enum KeyState {
+	KEY_NONE,       // not pressed last frame nor this frame
+	KEY_PRESSED,    // pressed this frame (wasn't pressed last frame)
+	KEY_HELD,       // held down (pressed last frame & this frame)
+	KEY_RELEASED    // released this frame (was pressed last frame, not pressed now)
+};
 
+static KeyState g_keyStates[256];
+static bool g_prevKeyDown[256];
+static bool g_currKeyDown[256];
+
+// Updates the key states each frame
+void UpdateInput()
+{
+	// 1) Move current down-states to 'previous'
+	for (int i = 0; i < 256; i++) {
+		g_prevKeyDown[i] = g_currKeyDown[i];
+	}
+
+	// 2) Read new states
+	for (int i = 0; i < 256; i++) {
+		SHORT state = GetAsyncKeyState(i);
+		g_currKeyDown[i] = (state & 0x8000) != 0; // highest bit indicates down
+	}
+
+	// 3) Determine KeyState based on old vs. new
+	for (int i = 0; i < 256; i++) {
+		if (!g_prevKeyDown[i] && !g_currKeyDown[i]) {
+			g_keyStates[i] = KEY_NONE;
+		}
+		else if (!g_prevKeyDown[i] && g_currKeyDown[i]) {
+			g_keyStates[i] = KEY_PRESSED;
+		}
+		else if (g_prevKeyDown[i] && g_currKeyDown[i]) {
+			g_keyStates[i] = KEY_HELD;
+		}
+		else if (g_prevKeyDown[i] && !g_currKeyDown[i]) {
+			g_keyStates[i] = KEY_RELEASED;
+		}
+	}
+}
+
+// Check if a key is held down (pressed or held)
+bool IsKeyDown(int vkCode)
+{
+	return (g_keyStates[vkCode] == KEY_PRESSED || g_keyStates[vkCode] == KEY_HELD);
+}
+
+// Check if a key was pressed this frame (like Unity's GetKeyDown)
+bool IsKeyPressed(int vkCode)
+{
+	return (g_keyStates[vkCode] == KEY_PRESSED);
+}
+
+// Check if a key was released this frame
+bool IsKeyReleased(int vkCode)
+{
+	return (g_keyStates[vkCode] == KEY_RELEASED);
+}
+// ===========================================================
 
 
 // Panel Rendering
@@ -29,6 +91,9 @@ Picture MainScreen;
 
 HANDLE g_hScreen[2];
 int screen_cur = 0;
+
+bool IS_FLOOR[4][Y_PIXELS];
+
 
 
 // Function Prototypes
@@ -53,7 +118,7 @@ void PlayerInit();
 void DrawTankCamera(int player);
 void HandleMainGamePlayerInput(int player);
 int ballistics(int player);
-
+void PrintFloor();
 
 // GameManager Variables
 
@@ -65,8 +130,8 @@ const double MAXARTILLARYWIND = 0.2;
 
 struct Camera
 {
-	int x = -80;
-	int y = 50;
+	int x = 0;
+	int y = 0;
 };
 
 Camera CAMERA;
@@ -95,12 +160,12 @@ enum GamePhase {
 	MAIN_MENU,
 	SHOW_PLAYER,
 	PLAYER1_MOVING,
-	PLAYER1_SHOOTING,
 	PLAYER1_ANGLE,
+	PLAYER1_SHOOTING,
 	WAIT_PLAYER1_PROJECTILE,
 	PLAYER2_MOVING,
+	PLAYER2_ANGLE,
 	PLAYER2_SHOOTING,
-	PLAYER2_TURN,
 	WAIT_PLAYER2_PROJECTILE,
 	GAME_OVER
 };
@@ -243,6 +308,7 @@ int main(void)
 			// Draw both players with camera offset
 			DrawTankCamera(PLAYER1);
 			DrawTankCamera(PLAYER2);
+			PrintFloor();
 
 			// Since there's no Sleep(), the camera moves in real time,
 			// completing in ~1 second for each segment (based on subPhaseDuration).
@@ -255,6 +321,7 @@ int main(void)
 			HandleMainGamePlayerInput(PLAYER1);
 			RenderStatusPanel(0, 50, PLAYER1);
 			DrawTankCamera(PLAYER1);
+			PrintFloor();
 			break;
 
 		case PLAYER1_ANGLE:
@@ -269,8 +336,14 @@ int main(void)
 			// TODO: fill in waiting for projectile logic
 			break;
 
-		case PLAYER2_TURN:
+		case PLAYER2_MOVING:
 			// TODO: fill in player2 turn logic
+			break;
+
+		case PLAYER2_ANGLE:
+			break;
+
+		case PLAYER2_SHOOTING:
 			break;
 
 		case WAIT_PLAYER2_PROJECTILE:
@@ -501,6 +574,12 @@ void ScreenInit() {
 
 	CursorView(g_hScreen[0], false);
 	CursorView(g_hScreen[1], false);
+
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < Y_PIXELS; j++) {
+			IS_FLOOR[i][j] = true;
+		}
+	}
 }
 
 void ScreenStart() {
@@ -613,5 +692,18 @@ void DrawMultilineToMainScreen(int x, int y, const wchar_t* s, WORD color = 0x00
 			}
 			cur_x++;
 		}
+	}
+}
+
+void PrintFloor() {
+	wchar_t line[Y_PIXELS + 1];
+
+	for (int row = 0; row < 4; row++) {
+		for (int col = 0; col < Y_PIXELS; col++) {
+			line[col] = IS_FLOOR[row][col] ? L'█' : L' ';
+		}
+		line[Y_PIXELS] = L'\0';
+
+		DrawMultilineToMainScreen(0, 37 + row, line, GREEN);
 	}
 }
