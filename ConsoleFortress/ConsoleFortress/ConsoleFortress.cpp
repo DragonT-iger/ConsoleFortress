@@ -1,6 +1,7 @@
 ﻿#include <windows.h>
 #include <conio.h>
 #include <math.h>
+#include <random>
 #include "KeyCodes.h"
 #include "Color.h"
 #include "Tank.h"
@@ -124,9 +125,9 @@ void PrintFloor();
 
 const double DEFAULTENERGY = 100;
 const int DEFAULTMOVE = 1000;
-const double MAXARTILLARYANGLE = 89;
-const double MAXARTILLARYPOWER = 10;
-const double MAXARTILLARYWIND = 0.2;
+const double MAXARTILLARYANGLE = 75;
+const double MAXARTILLARYPOWER = 5;
+const double MAXARTILLARYWIND = 0.02;
 
 struct Camera
 {
@@ -143,6 +144,7 @@ struct Player {
 	int move = DEFAULTMOVE;
 	double artillaryPower = 0;
 	double artillaryAngle = 0;
+	double tankRotation = 0;
 };
 Player PLAYER[2];
 
@@ -174,15 +176,18 @@ GamePhase currentPhase = SHOW_PLAYER;
 
 // 포탄 관련
 
-double gravity = -0.1;
-double wind = -0.05;
+double gravity = -0.05;
+double wind = -0.01;
 bool isCharged = false;
 double bulletHor = 0;
 double bulletVer = 0;
 double bulletTimer = 0;
 double PI = 3.14159265358979323846;
-double tankRotation = 0;
 double bulletCam = 0;
+
+// 턴 관련
+
+int turn = 0;
 
 int main(void)
 {
@@ -319,9 +324,18 @@ int main(void)
 		case PLAYER1_MOVING:
 			// TODO: fill in player1 moving logic
 			// Example usage:
-			HandleMainGamePlayerInput(PLAYER1);
-			RenderStatusPanel(0, 50, PLAYER1);
+			if (turn % 2)
+			{
+				HandleMainGamePlayerInput(PLAYER2);
+				RenderStatusPanel(0, 50, PLAYER2);
+			}
+			else
+			{
+				HandleMainGamePlayerInput(PLAYER1);
+				RenderStatusPanel(0, 50, PLAYER1);
+			}
 			DrawTankCamera(PLAYER1);
+			DrawTankCamera(PLAYER2);
 			PrintFloor();
 			break;
 
@@ -379,7 +393,7 @@ void DrawTankCamera(int player)
 
 	// Make sure the index doesn't go out of bounds for your tankUnicodeArt array
 	// (In your project, check the valid range. We'll assume it is safe for demonstration.)
-	DrawMultilineToMainScreen(drawX, drawY, tankUnicodeArt[tankIndex], GREEN);
+	DrawMultilineToMainScreen(drawX, drawY, tankUnicodeArt[tankIndex + int(6 * PLAYER[player].tankRotation)], GREEN);
 }
 
 
@@ -397,7 +411,7 @@ void HandleMainGamePlayerInput(int player) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis--;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
-			tankRotation = 1;
+			PLAYER[player].tankRotation = 1;
 		}
 
 	}	
@@ -405,12 +419,12 @@ void HandleMainGamePlayerInput(int player) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis++;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
-			tankRotation = 0;
+			PLAYER[player].tankRotation = 0;
 		}
 
 	}
 	// 각도 조절
-	if (GetAsyncKeyState(VK_UP) & 0x8000 && PLAYER[player].artillaryAngle < 89)
+	if (GetAsyncKeyState(VK_UP) & 0x8000 && PLAYER[player].artillaryAngle < 75)
 	{
 		PLAYER[player].artillaryAngle++;
 	}
@@ -421,7 +435,7 @@ void HandleMainGamePlayerInput(int player) {
 	// 발사 준비
 	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
 	{
-		if (PLAYER[player].artillaryPower < 10)
+		if (PLAYER[player].artillaryPower < MAXARTILLARYPOWER)
 		{
 			PLAYER[player].artillaryPower += 0.01;
 			isCharged = true;
@@ -435,6 +449,12 @@ void HandleMainGamePlayerInput(int player) {
 		PLAYER[player].artillaryPower = 0;
 		bulletTimer = 0;
 		// 턴 바꾸는 코드
+		PLAYER[player].move = DEFAULTMOVE;
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_real_distribution<double> dist(-MAXARTILLARYWIND, MAXARTILLARYWIND);
+		wind = dist(gen);
+		turn++;
 	}
 }
 
@@ -447,9 +467,9 @@ static int ballistics(int player)
 	while (bulletVer + PLAYER[player].yAxis < 22 + PLAYER[0].yAxis - CAMERA.y - (bulletVer * bulletCam))
 	{
 		bulletTimer += 0.1;
-		bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
+		bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((PLAYER[player].tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
 		bulletVer = PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180)))) - ((gravity * pow(bulletTimer, 2)) / 2);
-		if (tankRotation)
+		if (PLAYER[player].tankRotation)
 		{
 			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
 		}
@@ -458,16 +478,18 @@ static int ballistics(int player)
 			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
 		}
 		DrawTankCamera(PLAYER1);
+		DrawTankCamera(PLAYER2);
 		PrintFloor();
 		DrawScreen();
 	}
 	PrintFloor();
+	DrawTankCamera(PLAYER1);
+	DrawTankCamera(PLAYER2);
 	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", RED);
 	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", RED);
 	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", RED);
 	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", RED);
 	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", RED);
-	DrawTankCamera(PLAYER1);
 	DrawScreen();
 	Sleep(1000);
 	bulletCam = 0;
