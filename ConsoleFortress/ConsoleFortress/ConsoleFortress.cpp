@@ -117,6 +117,7 @@ double bulletVer = 0;
 double bulletTimer = 0;
 double PI = 3.14159265358979323846;
 double tankRotation = 0;
+double bulletCam = 0;
 
 int main(void)
 {
@@ -292,8 +293,8 @@ int main(void)
 void DrawTankCamera(int player)
 {
 	// We offset the position by CAMERA.x and CAMERA.y
-	int drawX = PLAYER[player].xAxis - CAMERA.x - (bulletHor * 5);
-	int drawY = PLAYER[player].yAxis - CAMERA.y - (bulletVer * 5);
+	int drawX = PLAYER[player].xAxis - CAMERA.x - (bulletHor * bulletCam);
+	int drawY = PLAYER[player].yAxis - CAMERA.y - (bulletVer * bulletCam);
 
 	// Safety check to avoid drawing out of bounds
 	if (drawX < 0 || drawX >= X_PIXELS || drawY < 0 || drawY >= Y_PIXELS) {
@@ -367,6 +368,7 @@ void HandleMainGamePlayerInput(int player) {
 // 탄도
 static int ballistics(int player)
 {
+	bulletCam = 5;
 	bulletHor = 0;
 	bulletVer = 0;
 	while (bulletVer + PLAYER[player].yAxis < 70)
@@ -393,6 +395,7 @@ static int ballistics(int player)
 	DrawTankCamera(PLAYER1);
 	DrawScreen();
 	Sleep(1000);
+	bulletCam = 0;
 	bulletHor = 0;
 	bulletVer = 0;
 	return 0;
