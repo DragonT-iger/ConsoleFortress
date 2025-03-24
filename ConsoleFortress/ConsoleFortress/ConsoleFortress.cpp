@@ -120,6 +120,7 @@ void DrawTankCamera(int player);
 void HandleMainGamePlayerInput(int player);
 int ballistics(int player);
 void PrintFloor();
+bool isEnemyHit(double bulletHor, double bulletVer);
 
 // GameManager Variables
 
@@ -477,6 +478,10 @@ static int ballistics(int player)
 		{
 			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
 		}
+		if (isEnemyHit(bulletHor, bulletVer))
+		{
+			break;
+		}
 		DrawTankCamera(PLAYER1);
 		DrawTankCamera(PLAYER2);
 		PrintFloor();
@@ -498,6 +503,26 @@ static int ballistics(int player)
 	return 0;
 }
 
+static bool isEnemyHit(double bulletHor, double bulletVer)
+{
+	bool isHit = false;
+	if (turn % 2)
+	{
+		if ((bulletHor + PLAYER[1].xAxis - 25 > PLAYER[0].xAxis - CAMERA.x - (bulletHor * bulletCam)) )
+		{
+			isHit = true;
+		}
+	}
+	else
+	{
+		if ((bulletHor + PLAYER[0].xAxis - 25 > PLAYER[1].xAxis - CAMERA.x - (bulletHor * bulletCam)) )
+		{
+			isHit = true;
+		}
+	}
+	return isHit;
+}
+
 void RenderStatusPanel(int x, int y, int player) {
 	for (int i = 0; i < 2; i++) {
 		if (player == i) {
@@ -514,7 +539,7 @@ void RenderStatusPanel(int x, int y, int player) {
 			if (i == 1) {
 				DrawToMainScreen(x + 3, y - 2, L"PLAYER2", MAGENTA);
 			}
-			DrawToMainScreen(x + 4, y - 1, L"angle");
+			DrawToMainScreen(x + 4, y - 1, L"ANGLE");
 
 			DrawMultilineToMainScreen(x + 2, y, numberUnicodeArt[tens], YELLOW);
 			DrawMultilineToMainScreen(x + 2 + 5, y, numberUnicodeArt[ones], YELLOW);
