@@ -80,10 +80,12 @@ Player PLAYER[2];
 const int PLAYER1 = 0;
 const int PLAYER2 = 1;
 
-const int P1_OFFSET_X = 0;
-const int P1_OFFSET_Y = 0;
-const int P2_OFFSET_X = 0;
-const int P2_OFFSET_Y = 0;
+// 이거 바꾸면 위아래 기본값 조절가능
+
+const int P1_OFFSET_X = 50;
+const int P1_OFFSET_Y = 30;
+const int P2_OFFSET_X = 80;
+const int P2_OFFSET_Y = 30;
 
 enum GamePhase {
 	MAIN_MENU,
@@ -119,68 +121,64 @@ int main(void)
 			// Example:
 			// HandlePlayerInput(0);
 			// RenderStatusPanel(...);
+			
 			break;
 
 		case SHOW_PLAYER:
 		{
-			/*
-			 * Sub-phase approach (time-based):
-			 *   0) Instantly place camera on Player1
-			 *   1) Animate camera from P1 -> P2 over 1 second
-			 *   2) Animate camera from P2 -> P1 over 1 second
-			 *   3) Move to next phase
-			 */
 
 			static int showPlayerSubPhase = 0;
+			static const int waitDuration = 2000;
 
-			// We'll use these to store animation info
 			static const ULONGLONG subPhaseDuration = 1000; // 1 second in ms
 			static ULONGLONG subPhaseStartTime = 0;
 
-			// Start/end positions for camera each sub-phase
 			static int startX = 0, startY = 0;
 			static int targetX = 0, targetY = 0;
 
 			// Get current time in ms
 			ULONGLONG now = GetTickCount64();
 
+
+
 			switch (showPlayerSubPhase)
 			{
 			case 0:
-				// Instantly place camera on Player1, applying Player1's offsets
+				// Immediately position the camera on Player1 with offsets
 				CAMERA.x = PLAYER[PLAYER1].xAxis - P1_OFFSET_X;
 				CAMERA.y = PLAYER[PLAYER1].yAxis - P1_OFFSET_Y;
 
-				// Prepare for next sub-phase: animate from P1 -> P2
-				startX = CAMERA.x;
-				startY = CAMERA.y;
-				targetX = PLAYER[PLAYER2].xAxis - P2_OFFSET_X;
-				targetY = PLAYER[PLAYER2].yAxis - P2_OFFSET_Y;
+				// Initialize the timer on the first run
+				if (subPhaseStartTime == 0)
+					subPhaseStartTime = now;
 
-				subPhaseStartTime = now;
-				showPlayerSubPhase++;
+				if (now - subPhaseStartTime >= waitDuration)
+				{
+					startX = CAMERA.x;
+					startY = CAMERA.y;
+					targetX = PLAYER[PLAYER2].xAxis - P2_OFFSET_X;
+					targetY = PLAYER[PLAYER2].yAxis - P2_OFFSET_Y;
+
+					// Reset the timer and proceed to the next sub-phase
+					subPhaseStartTime = now;
+					showPlayerSubPhase++;
+				}
 				break;
 
 			case 1:
 			{
-				// Animate camera from (startX, startY) to (targetX, targetY)
-				// over subPhaseDuration ms
 				ULONGLONG elapsed = now - subPhaseStartTime;
-				float t = (float)elapsed / (float)subPhaseDuration; // 0 to 1
+				float t = (float)elapsed / (float)subPhaseDuration; 
 
 				if (t >= 1.0f)
 				{
-					// Clamp to final position
 					t = 1.0f;
 
-					// Now set up next sub-phase (P2 -> P1)
 					showPlayerSubPhase++;
 
-					// Start is the camera's current final position
 					startX = targetX;
 					startY = targetY;
 
-					// Target is Player1 again (with P1 offsets)
 					targetX = PLAYER[PLAYER1].xAxis - P1_OFFSET_X;
 					targetY = PLAYER[PLAYER1].yAxis - P1_OFFSET_Y;
 
@@ -196,25 +194,35 @@ int main(void)
 
 			case 2:
 			{
-				// Animate camera from P2 -> P1
 				ULONGLONG elapsed = now - subPhaseStartTime;
-				float t = (float)elapsed / (float)subPhaseDuration;
-
-				if (t >= 1.0f)
+				// Wait for 2 seconds at Player2 before starting transition to Player1
+				if (elapsed < waitDuration)
 				{
-					t = 1.0f;
-					// Done with showing players
-					showPlayerSubPhase++;
+					// Keep camera at Player2 position during the wait
+					CAMERA.x = startX;
+					CAMERA.y = startY;
 				}
-
-				CAMERA.x = (int)(startX + t * (targetX - startX));
-				CAMERA.y = (int)(startY + t * (targetY - startY));
+				else
+				{
+					// Adjust elapsed time by subtracting the wait duration
+					elapsed -= waitDuration;
+					float t = (float)elapsed / (float)subPhaseDuration;
+					if (t >= 1.0f)
+					{
+						t = 1.0f;
+						showPlayerSubPhase++;
+					}
+					// Linear interpolation for camera position (from Player2 to Player1)
+					CAMERA.x = (int)(startX + t * (targetX - startX));
+					CAMERA.y = (int)(startY + t * (targetY - startY));
+				}
 			}
 			break;
 
 			case 3:
 				// Move on to the next phase
 				currentPhase = PLAYER1_MOVING;
+				RenderStatusPanel(0, 50, PLAYER1);
 				break;
 			}
 
@@ -233,7 +241,6 @@ int main(void)
 			HandleMainGamePlayerInput(PLAYER1);
 			RenderStatusPanel(0, 50, PLAYER1);
 			DrawTankCamera(PLAYER1);
-			DrawTankCamera(PLAYER2);
 			break;
 
 		case PLAYER1_ANGLE:
@@ -292,7 +299,7 @@ void PlayerInit() {
 	PLAYER[0].xAxis = 80;
 	PLAYER[0].yAxis = 50;
 
-	PLAYER[1].xAxis = 200;
+	PLAYER[1].xAxis = 300;
 	PLAYER[1].yAxis = 50;
 }
 
@@ -306,49 +313,57 @@ void HandleMainGamePlayerInput(int player) {
 			PLAYER[player].move--;
 		}
 
-	}	// 좌 방향키
+	}	
 	if (key == KEY_RIGHT && PLAYER[player].move > 0) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis++;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
 		}
 
-	}	// 우 방향키
+	}	
 	if (key == KEY_SPACE) {
 		
 	}
 }
 
 void RenderStatusPanel(int x, int y, int player) {
-	if (player == PLAYER1) {
-		int angle = (int)(PLAYER[PLAYER1].artillaryAngle);
+	for (int i = 0; i < 2; i++) {
+		if (player == i) {
+			int angle = (int)(PLAYER[i].artillaryAngle);
 
-		int tens = angle / 10;
-		int ones = angle % 10;
+			int tens = angle / 10;
+			int ones = angle % 10;
 
-		DrawMultilineToMainScreen(x, y - 4, uiBar, YELLOW);
-		DrawMultilineToMainScreen(x, y + 4, uiBar, YELLOW);
-		DrawToMainScreen(x + 3, y - 2, L"PLAYER1",MAGENTA);
-		DrawToMainScreen(x + 4, y - 1, L"angle");
+			DrawMultilineToMainScreen(x, y - 4, uiBar, YELLOW);
+			DrawMultilineToMainScreen(x, y + 4, uiBar, YELLOW);
+			if (i == 0) {
+				DrawToMainScreen(x + 3, y - 2, L"PLAYER1", MAGENTA);
+			}
+			if (i == 1) {
+				DrawToMainScreen(x + 3, y - 2, L"PLAYER2", MAGENTA);
+			}
+			DrawToMainScreen(x + 4, y - 1, L"angle");
 
-		DrawMultilineToMainScreen(x + 2, y, numberUnicodeArt[tens], YELLOW);
-		DrawMultilineToMainScreen(x + 2 + 5, y, numberUnicodeArt[ones], YELLOW);
+			DrawMultilineToMainScreen(x + 2, y, numberUnicodeArt[tens], YELLOW);
+			DrawMultilineToMainScreen(x + 2 + 5, y, numberUnicodeArt[ones], YELLOW);
 
-		DrawToMainScreen(x + 20, y - 2, L"ENERGY", GREEN);
-		DrawToMainScreen(x + 21, y, L"POWER", RED);
-		DrawToMainScreen(x + 22, y + 2, L"MOVE", YELLOW);
+			DrawToMainScreen(x + 20, y - 2, L"ENERGY", GREEN);
+			DrawToMainScreen(x + 21, y, L"POWER", RED);
+			DrawToMainScreen(x + 22, y + 2, L"MOVE", YELLOW);
 
-		const int SliderMaxSize = 75;
+			const int SliderMaxSize = 75;
 
-		int energySliderSize = (PLAYER[PLAYER1].energy * SliderMaxSize) / DEFAULTENERGY;
-		int moveSliderSize = (PLAYER[PLAYER1].move * SliderMaxSize) / DEFAULTMOVE;
+			int energySliderSize = (PLAYER[i].energy * SliderMaxSize) / DEFAULTENERGY;
+			int moveSliderSize = (PLAYER[i].move * SliderMaxSize) / DEFAULTMOVE;
 
-		for (int i = 0; i < energySliderSize; i++) {
-			DrawToMainScreen(x + 30 + i, y - 2, L"█", GREEN);
-		}
+			for (int i = 0; i < energySliderSize; i++) {
+				DrawToMainScreen(x + 30 + i, y - 2, L"█", GREEN);
+			}
 
-		for (int i = 0; i < moveSliderSize; i++) {
-			DrawToMainScreen(x + 30 + i, y + 2, L"█", YELLOW);
+			for (int i = 0; i < moveSliderSize; i++) {
+				DrawToMainScreen(x + 30 + i, y + 2, L"█", YELLOW);
+			}
+
 		}
 	}
 	
