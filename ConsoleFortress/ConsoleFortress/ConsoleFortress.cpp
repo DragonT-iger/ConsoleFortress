@@ -444,7 +444,7 @@ static int ballistics(int player)
 	bulletCam = 5;
 	bulletHor = 0;
 	bulletVer = 0;
-	while (bulletVer + PLAYER[player].yAxis < 25 + PLAYER[0].yAxis - CAMERA.y - (bulletVer * bulletCam))
+	while (bulletVer + PLAYER[player].yAxis < 22 + PLAYER[0].yAxis - CAMERA.y - (bulletVer * bulletCam))
 	{
 		bulletTimer += 0.1;
 		bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
@@ -709,6 +709,6 @@ void PrintFloor() {
 		}
 		line[Y_PIXELS] = L'\0';
 
-		DrawMultilineToMainScreen(0, 6 + PLAYER[0].yAxis - CAMERA.y - (bulletVer * bulletCam), line, GREEN);
+		DrawMultilineToMainScreen(0, 6 + PLAYER[0].yAxis - CAMERA.y - (bulletVer * bulletCam) + row, line, GREEN);
 	}
 }
