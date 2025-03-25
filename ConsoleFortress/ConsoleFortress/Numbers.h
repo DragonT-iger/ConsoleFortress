@@ -2,10 +2,6 @@
 #ifndef NUMBERS_H
 #define NUMBERS_H
 
-// ASCII art representation for digits 0 to 9 using block characters.
-// Each digit is stored as a multi-line wide string literal.
-
-// You can adjust the art below as needed. The current design uses a 5-line format.
 
 static const wchar_t* const numberUnicodeArt[10] = {
     // Digit 0

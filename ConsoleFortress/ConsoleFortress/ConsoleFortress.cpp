@@ -121,6 +121,7 @@ void HandleMainGamePlayerInput(int player);
 int ballistics(int player);
 void PrintFloor();
 bool isEnemyHit(double bulletHor, double bulletVer);
+void AdjustCameraLocation(int player);
 
 // GameManager Variables
 
@@ -137,6 +138,7 @@ struct Camera
 };
 
 Camera CAMERA;
+Camera CAMERA2;
 
 struct Player {
 	int xAxis;
@@ -335,7 +337,9 @@ int main(void)
 			{
 				HandleMainGamePlayerInput(PLAYER1);
 				RenderStatusPanel(0, 50, PLAYER1);
+
 			}
+			AdjustCameraLocation(turn % 2);
 			DrawTankCamera(PLAYER1);
 			DrawTankCamera(PLAYER2);
 			PrintFloor();
@@ -382,7 +386,7 @@ int main(void)
 void DrawTankCamera(int player)
 {
 	// We offset the position by CAMERA.x and CAMERA.y
-	int drawX = PLAYER[player].xAxis - CAMERA.x - (bulletHor * bulletCam);
+	int drawX = PLAYER[player].xAxis - CAMERA.x - (bulletHor * bulletCam) - CAMERA2.x;
 	int drawY = PLAYER[player].yAxis - CAMERA.y - (bulletVer * bulletCam);
 
 	// Safety check to avoid drawing out of bounds
@@ -409,7 +413,7 @@ void PlayerInit() {
 
 void HandleMainGamePlayerInput(int player) {
 
-	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0) {
+	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x > 30) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis--;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
@@ -417,7 +421,7 @@ void HandleMainGamePlayerInput(int player) {
 		}
 
 	}	
-	if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && PLAYER[player].move > 0) {
+	if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x < 215) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis++;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
@@ -484,11 +488,11 @@ static int ballistics(int player)
 			bulletVer = PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180)))) - ((gravity * pow(bulletTimer, 2)) / 2);
 			if (PLAYER[player].tankRotation)
 			{
-				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
 			}
 			else
 			{
-				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 , bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
 			}
 			if (isEnemyHit(bulletHor, bulletVer))
 			{
@@ -510,11 +514,11 @@ static int ballistics(int player)
 		PrintFloor();
 		DrawTankCamera(PLAYER1);
 		DrawTankCamera(PLAYER2);
-		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", RED);
-		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", RED);
-		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", RED);
-		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", RED);
-		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", RED);
 	}
 	else if (PLAYER[player].ammoType == 1)
 	{
@@ -856,5 +860,17 @@ void PrintFloor() {
 		line[Y_PIXELS] = L'\0';
 
 		DrawMultilineToMainScreen(0, 6 + PLAYER[0].yAxis - CAMERA.y - (bulletVer * bulletCam) + row, line, GREEN);
+	}
+}
+
+void AdjustCameraLocation(int player) {
+	if (player == 0) {
+		CAMERA2.x = 0;
+		CAMERA2.y = 0;
+	}
+
+	else {
+		CAMERA2.x = 180;
+		CAMERA2.y = 0;
 	}
 }
