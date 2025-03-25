@@ -535,15 +535,15 @@ static int ballistics(int player)
 			if (bulletVer > 21 - CAMERA.y - (bulletVer * bulletCam) && bounce)
 			{
 				bounce = false;
-				reverseBulletVer = bulletTimer * 2;
+				reverseBulletVer = bulletTimer * 1.999;
 			}
 			if (PLAYER[player].tankRotation)
 			{
-				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
 			}
 			else
 			{
-				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
 			}
 			if (isEnemyHit(bulletHor, bulletVer))
 			{
