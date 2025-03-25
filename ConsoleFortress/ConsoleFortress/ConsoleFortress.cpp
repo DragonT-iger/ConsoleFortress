@@ -7,6 +7,7 @@
 #include "Tank.h"
 #include "Numbers.h"
 #include "UI.h"
+#include "MainMenu.h"
 
 
 
@@ -122,6 +123,7 @@ int ballistics(int player);
 void PrintFloor();
 bool isEnemyHit(double bulletHor, double bulletVer);
 void AdjustCameraLocation(int player);
+void MainMenu();
 
 // GameManager Variables
 
@@ -176,7 +178,7 @@ enum GamePhase {
 	GAME_OVER
 };
 
-GamePhase currentPhase = SHOW_PLAYER;
+GamePhase currentPhase = MAIN_MENU;
 
 // 포탄 관련
 
@@ -206,10 +208,7 @@ int main(void)
 		switch (currentPhase)
 		{
 		case MAIN_MENU:
-			// TODO: fill in main menu logic
-			// Example:
-			// HandlePlayerInput(0);
-			// RenderStatusPanel(...);
+			MainMenu();
 			
 			break;
 
@@ -399,7 +398,9 @@ void DrawTankCamera(int player)
 
 	// Make sure the index doesn't go out of bounds for your tankUnicodeArt array
 	// (In your project, check the valid range. We'll assume it is safe for demonstration.)
-	DrawMultilineToMainScreen(drawX, drawY, tankUnicodeArt[tankIndex + int(6 * PLAYER[player].tankRotation)], GREEN);
+
+	if (player == 0) DrawMultilineToMainScreen(drawX, drawY, tankUnicodeArt[tankIndex + int(6 * PLAYER[player].tankRotation)], MAGENTA);
+	if (player == 1) DrawMultilineToMainScreen(drawX, drawY, tankUnicodeArt[tankIndex + int(6 * PLAYER[player].tankRotation)], GREEN);
 }
 
 
@@ -864,5 +865,84 @@ void AdjustCameraLocation(int player) {
 	else {
 		CAMERA2.x = 180;
 		CAMERA2.y = 0;
+	}
+}
+
+void MainMenu()
+{
+	initScreen(MainScreen);
+
+	int key = 0;
+	int menuX = 145;
+	int menuY = 22;
+	int tankX = 150;
+	int tankY = 10;
+	int wordX = 5;
+	int wordY = 52;
+	ULONGLONG curTime = 0;
+	ULONGLONG preTime = 0;
+	bool blinkFlag = true;
+	ULONGLONG loopBullet = 0;
+
+	while (_kbhit()) _getch(); //버퍼에 있는 키값을 버림 
+
+	while (1)
+	{
+		curTime = GetTickCount64();
+
+		DrawMultilineToMainScreen(0, 0, mainMenuArt[5], WHITE);
+		DrawMultilineToMainScreen(wordX, wordY, mainMenuArt[6], WHITE);
+
+		if (curTime - preTime >= 400)
+		{
+			blinkFlag = !blinkFlag;
+			preTime = curTime;
+
+			DrawMultilineToMainScreen(tankX, tankY, tankUnicodeArt[4], GREEN);
+			if (loopBullet % 3 == 0)
+			{
+				DrawMultilineToMainScreen(tankX + 15, tankY - 2, mainMenuArt[2], GREEN);
+				loopBullet++;
+			}
+			else if (loopBullet % 3 == 1)
+			{
+				DrawMultilineToMainScreen(tankX + 30, tankY - 7, mainMenuArt[2], GREEN);
+				loopBullet++;
+			}
+			else if (loopBullet % 3 == 2)
+			{
+				DrawMultilineToMainScreen(tankX + 45, tankY - 2, mainMenuArt[2], GREEN);
+				loopBullet++;
+			}
+
+			if (blinkFlag)
+			{
+				DrawMultilineToMainScreen(menuX, menuY, mainMenuArt[0], YELLOW);
+				DrawMultilineToMainScreen(menuX + 5, menuY + 3, mainMenuArt[3], YELLOW);
+
+				DrawScreen();
+			}
+
+			else
+			{
+				DrawMultilineToMainScreen(menuX, menuY, mainMenuArt[1], YELLOW);
+				DrawMultilineToMainScreen(menuX + 5, menuY + 3, mainMenuArt[4], YELLOW);
+
+				DrawScreen();
+			}
+
+
+
+		}
+
+		if (_kbhit()) {         //키입력받음 
+			key = _getch();
+			if (key == KEY_ESC)   exit(0);   // ESC키면 종료 
+			else
+			{
+				currentPhase = SHOW_PLAYER;
+				break;      // 아니면 그냥 계속 진행 
+			}
+		}
 	}
 }
