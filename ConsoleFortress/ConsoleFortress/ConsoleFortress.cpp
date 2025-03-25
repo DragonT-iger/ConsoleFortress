@@ -127,7 +127,7 @@ bool isEnemyHit(double bulletHor, double bulletVer);
 const double DEFAULTENERGY = 100;
 const int DEFAULTMOVE = 1000;
 const double MAXARTILLARYANGLE = 75;
-const double MAXARTILLARYPOWER = 5;
+const double MAXARTILLARYPOWER = 3;
 const double MAXARTILLARYWIND = 0.02;
 
 struct Camera
@@ -146,6 +146,7 @@ struct Player {
 	double artillaryPower = 0;
 	double artillaryAngle = 0;
 	double tankRotation = 0;
+	int ammoType = 0;
 };
 Player PLAYER[2];
 
@@ -177,7 +178,7 @@ GamePhase currentPhase = SHOW_PLAYER;
 
 // 포탄 관련
 
-double gravity = -0.05;
+double gravity = -0.02;
 double wind = -0.01;
 bool isCharged = false;
 double bulletHor = 0;
@@ -427,18 +428,27 @@ void HandleMainGamePlayerInput(int player) {
 	// 각도 조절
 	if (GetAsyncKeyState(VK_UP) & 0x8000 && PLAYER[player].artillaryAngle < 75)
 	{
-		PLAYER[player].artillaryAngle++;
+		PLAYER[player].artillaryAngle += 0.2;
 	}
 	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && PLAYER[player].artillaryAngle > 0)
 	{
-		PLAYER[player].artillaryAngle--;
+		PLAYER[player].artillaryAngle -= 0.2;
+	}
+	// 탄 변경
+	if (GetAsyncKeyState(0x30) & 0x8000)
+	{
+		PLAYER[player].ammoType = 0;
+	}
+	if (GetAsyncKeyState(0x31) & 0x8000)
+	{
+		PLAYER[player].ammoType = 1;
 	}
 	// 발사 준비
 	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
 	{
 		if (PLAYER[player].artillaryPower < MAXARTILLARYPOWER)
 		{
-			PLAYER[player].artillaryPower += 0.01;
+			PLAYER[player].artillaryPower += 0.002;
 			isCharged = true;
 		}
 	}
@@ -462,47 +472,105 @@ void HandleMainGamePlayerInput(int player) {
 // 탄도
 static int ballistics(int player)
 {
-	bulletCam = 5;
+	bulletCam = 4;
 	bulletHor = 0;
 	bulletVer = 0;
-	while (bulletVer + PLAYER[player].yAxis < 22 + PLAYER[0].yAxis - CAMERA.y - (bulletVer * bulletCam))
+	if (PLAYER[player].ammoType == 0)
 	{
-		bulletTimer += 0.1;
-		bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((PLAYER[player].tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
-		bulletVer = PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180)))) - ((gravity * pow(bulletTimer, 2)) / 2);
-		if (PLAYER[player].tankRotation)
+		while (bulletVer < 22 - CAMERA.y - (bulletVer * bulletCam))
 		{
-			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
-		}
-		else
-		{
-			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
-		}
-		if (isEnemyHit(bulletHor, bulletVer))
-		{
-			if (turn % 2)
+			bulletTimer += 0.1;
+			bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((PLAYER[player].tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
+			bulletVer = PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180)))) - ((gravity * pow(bulletTimer, 2)) / 2);
+			if (PLAYER[player].tankRotation)
 			{
-				PLAYER[0].energy -= 25;
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
 			}
 			else
 			{
-				PLAYER[1].energy -= 25;
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
 			}
-			break;
+			if (isEnemyHit(bulletHor, bulletVer))
+			{
+				if (turn % 2)
+				{
+					PLAYER[0].energy -= 25;
+				}
+				else
+				{
+					PLAYER[1].energy -= 25;
+				}
+				break;
+			}
+			DrawTankCamera(PLAYER1);
+			DrawTankCamera(PLAYER2);
+			PrintFloor();
+			DrawScreen();
 		}
+		PrintFloor();
 		DrawTankCamera(PLAYER1);
 		DrawTankCamera(PLAYER2);
-		PrintFloor();
-		DrawScreen();
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", RED);
 	}
-	PrintFloor();
-	DrawTankCamera(PLAYER1);
-	DrawTankCamera(PLAYER2);
-	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", RED);
-	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", RED);
-	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", RED);
-	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", RED);
-	DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", RED);
+	else if (PLAYER[player].ammoType == 1)
+	{
+		bool bounce = true;
+		double reverseBulletVer = 0;
+		while (bulletVer < 22 - CAMERA.y - (bulletVer * bulletCam) || bounce)
+		{
+			bulletTimer += 0.1;
+			bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((PLAYER[player].tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
+			if (bounce)
+			{
+				bulletVer = (PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180))))) - ((gravity * pow(bulletTimer, 2)) / 2);
+			}
+			else
+			{
+				bulletVer = (PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180))))) - ((gravity * pow(bulletTimer - reverseBulletVer, 2)) / 2);
+			}
+			if (bulletVer > 21 - CAMERA.y - (bulletVer * bulletCam) && bounce)
+			{
+				bounce = false;
+				reverseBulletVer = bulletTimer * 2;
+			}
+			if (PLAYER[player].tankRotation)
+			{
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
+			}
+			else
+			{
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
+			}
+			if (isEnemyHit(bulletHor, bulletVer))
+			{
+				if (turn % 2)
+				{
+					PLAYER[0].energy -= 25;
+				}
+				else
+				{
+					PLAYER[1].energy -= 25;
+				}
+				break;
+			}
+			DrawTankCamera(PLAYER1);
+			DrawTankCamera(PLAYER2);
+			PrintFloor();
+			DrawScreen();
+		}
+		PrintFloor();
+		DrawTankCamera(PLAYER1);
+		DrawTankCamera(PLAYER2);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", RED);
+	}
 	DrawScreen();
 	Sleep(1000);
 	bulletCam = 0;
@@ -562,6 +630,29 @@ void RenderStatusPanel(int x, int y, int player) {
 			else
 			{
 				DrawToMainScreen(x + 120, y - 2, L"WIND <-", CYAN);
+			}
+			DrawToMainScreen(x + 120, y + 1, L"AMMO", 0x0007);
+			if (turn % 2)
+			{
+				if (PLAYER[1].ammoType == 0)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"CANNON", 0x0008);
+				}
+				if (PLAYER[1].ammoType == 1)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"BOUNCE", 0x0008);
+				}
+			}
+			else
+			{
+				if (PLAYER[0].ammoType == 0)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"CANNON", 0x0008);
+				}
+				if (PLAYER[0].ammoType == 1)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"BOUNCE", 0x0008);
+				}
 			}
 
 			const int SliderMaxSize = 75;
