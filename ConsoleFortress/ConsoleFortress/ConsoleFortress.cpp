@@ -148,7 +148,7 @@ struct Player {
 	int energy = DEFAULTENERGY;
 	int move = DEFAULTMOVE;
 	double artillaryPower = 0;
-	double artillaryAngle = 0;
+	double artillaryAngle = 30;
 	double tankRotation = 0;
 	int ammoType = 0;
 };
@@ -443,14 +443,27 @@ void HandleMainGamePlayerInput(int player) {
 		}
 
 	}
+	// 탄 변경
+	if (GetAsyncKeyState(0x31) & 0x8000)
+	{
+		PLAYER[player].ammoType = 0;
+	}
+	if (GetAsyncKeyState(0x32) & 0x8000)
+	{
+		PLAYER[player].ammoType = 1;
+	}
+	if (GetAsyncKeyState(0x33) & 0x8000)
+	{
+		PLAYER[player].ammoType = 2;
+	}
 	// 각도 조절
 	if (GetAsyncKeyState(VK_UP) & 0x8000 && PLAYER[player].artillaryAngle < 75)
 	{
-		PLAYER[player].artillaryAngle += 0.2;
+		PLAYER[player].artillaryAngle += 0.15;
 	}
-	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && PLAYER[player].artillaryAngle > 0)
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && PLAYER[player].artillaryAngle > 30)
 	{
-		PLAYER[player].artillaryAngle -= 0.2;
+		PLAYER[player].artillaryAngle -= 0.15;
 	}
 	// 탄 변경
 	if (GetAsyncKeyState(0x31) & 0x8000)
@@ -546,14 +559,14 @@ static int ballistics(int player)
 		while (bulletVer < 22 - CAMERA.y - (bulletVer * bulletCam) || bounce)
 		{
 			bulletTimer += 0.1;
-			bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((PLAYER[player].tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
+			bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((PLAYER[player].tankRotation * 180) - (PLAYER[player].artillaryAngle - 20)) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
 			if (bounce)
 			{
-				bulletVer = (PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180))))) - ((gravity * pow(bulletTimer, 2)) / 2);
+				bulletVer = (PLAYER[player].artillaryPower * (bulletTimer * sin((-(PLAYER[player].artillaryAngle - 20) * (PI / 180))))) - ((gravity * pow(bulletTimer, 2)) / 2);
 			}
 			else
 			{
-				bulletVer = (PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180))))) - ((gravity * pow(bulletTimer - reverseBulletVer, 2)) / 2);
+				bulletVer = (PLAYER[player].artillaryPower * (bulletTimer * sin((-(PLAYER[player].artillaryAngle - 20) * (PI / 180))))) - ((gravity * pow(bulletTimer - reverseBulletVer, 2)) / 2);
 			}
 			if (bulletVer > 21 - CAMERA.y - (bulletVer * bulletCam) && bounce)
 			{
