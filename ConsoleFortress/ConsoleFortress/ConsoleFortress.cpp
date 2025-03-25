@@ -543,11 +543,11 @@ static int ballistics(int player)
 			{
 				if (turn % 2)
 				{
-					PLAYER[0].energy -= 25;
+					PLAYER[0].energy -= 20;
 				}
 				else
 				{
-					PLAYER[1].energy -= 25;
+					PLAYER[1].energy -= 20;
 				}
 				break;
 			}
