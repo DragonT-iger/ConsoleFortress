@@ -410,6 +410,7 @@ void PlayerInit() {
 
 	PLAYER[1].xAxis = 300;
 	PLAYER[1].yAxis = 50;
+	PLAYER[1].tankRotation = 1;
 }
 
 void HandleMainGamePlayerInput(int player) {
