@@ -480,6 +480,14 @@ static int ballistics(int player)
 		}
 		if (isEnemyHit(bulletHor, bulletVer))
 		{
+			if (turn % 2)
+			{
+				PLAYER[0].energy -= 25;
+			}
+			else
+			{
+				PLAYER[1].energy -= 25;
+			}
 			break;
 		}
 		DrawTankCamera(PLAYER1);
@@ -508,14 +516,14 @@ static bool isEnemyHit(double bulletHor, double bulletVer)
 	bool isHit = false;
 	if (turn % 2)
 	{
-		if ((bulletHor + PLAYER[1].xAxis - 25 > PLAYER[0].xAxis - CAMERA.x - (bulletHor * bulletCam)) )
+		if ((bulletHor + PLAYER[1].xAxis - 21 > PLAYER[0].xAxis - CAMERA.x - (bulletHor * bulletCam)) && (bulletHor + PLAYER[1].xAxis - 39 < PLAYER[0].xAxis - CAMERA.x - (bulletHor * bulletCam)) && (bulletVer + PLAYER[1].yAxis > 18 + PLAYER[0].yAxis - CAMERA.y - (bulletVer * bulletCam)))
 		{
 			isHit = true;
 		}
 	}
 	else
 	{
-		if ((bulletHor + PLAYER[0].xAxis - 25 > PLAYER[1].xAxis - CAMERA.x - (bulletHor * bulletCam)) )
+		if ((bulletHor + PLAYER[0].xAxis - 21 > PLAYER[1].xAxis - CAMERA.x - (bulletHor * bulletCam)) && (bulletHor + PLAYER[0].xAxis - 39 < PLAYER[1].xAxis - CAMERA.x - (bulletHor * bulletCam)) && (bulletVer + PLAYER[0].yAxis > 18 + PLAYER[1].yAxis - CAMERA.y - (bulletVer * bulletCam)))
 		{
 			isHit = true;
 		}
