@@ -191,6 +191,7 @@ double bulletCam = 0;
 
 // 턴 관련
 
+bool winner = true;
 int turn = 0;
 
 int main(void)
@@ -330,14 +331,23 @@ int main(void)
 			// Example usage:
 			if (turn % 2)
 			{
+				if (PLAYER[1].energy <= 0)
+				{
+					winner = true;
+					currentPhase = GAME_OVER;
+				}
 				HandleMainGamePlayerInput(PLAYER2);
 				RenderStatusPanel(0, 50, PLAYER2);
 			}
 			else
 			{
+				if (PLAYER[0].energy <= 0)
+				{
+					winner = false;
+					currentPhase = GAME_OVER;
+				}
 				HandleMainGamePlayerInput(PLAYER1);
 				RenderStatusPanel(0, 50, PLAYER1);
-
 			}
 			AdjustCameraLocation(turn % 2);
 			DrawTankCamera(PLAYER1);
@@ -374,6 +384,8 @@ int main(void)
 		case GAME_OVER:
 			// TODO: fill in game over logic
 			// Possibly break out of the loop or wait for input
+			
+			// 전역 변수 winner이 true 라면 1p 우승, false라면 2p 우승
 			break;
 		}
 
