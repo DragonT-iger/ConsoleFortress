@@ -484,11 +484,11 @@ static int ballistics(int player)
 			bulletVer = PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180)))) - ((gravity * pow(bulletTimer, 2)) / 2);
 			if (PLAYER[player].tankRotation)
 			{
-				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", 0x0008);
 			}
 			else
 			{
-				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", 0x0008);
 			}
 			if (isEnemyHit(bulletHor, bulletVer))
 			{
@@ -535,16 +535,10 @@ static int ballistics(int player)
 			if (bulletVer > 21 - CAMERA.y - (bulletVer * bulletCam) && bounce)
 			{
 				bounce = false;
-				reverseBulletVer = bulletTimer * 1.999;
+				reverseBulletVer = bulletTimer * 1.99999;
 			}
-			if (PLAYER[player].tankRotation)
-			{
-				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", WHITE);
-			}
-			else
-			{
-				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
-			}
+			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20, bulletVer + PLAYER[player].yAxis - 18, L"◢■■◣", BLUE);
+			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20, bulletVer + PLAYER[player].yAxis - 17, L"◥■■◤", BLUE);
 			if (isEnemyHit(bulletHor, bulletVer))
 			{
 				if (turn % 2)
@@ -565,11 +559,11 @@ static int ballistics(int player)
 		PrintFloor();
 		DrawTankCamera(PLAYER1);
 		DrawTankCamera(PLAYER2);
-		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", RED);
-		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", RED);
-		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", RED);
-		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", RED);
-		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", CYAN);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", CYAN);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", CYAN);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", CYAN);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", CYAN);
 	}
 	DrawScreen();
 	Sleep(1000);
@@ -640,7 +634,7 @@ void RenderStatusPanel(int x, int y, int player) {
 				}
 				if (PLAYER[1].ammoType == 1)
 				{
-					DrawToMainScreen(x + 120, y + 2, L"BOUNCE", 0x0008);
+					DrawToMainScreen(x + 120, y + 2, L"BOUNCE", CYAN);
 				}
 			}
 			else
@@ -651,7 +645,7 @@ void RenderStatusPanel(int x, int y, int player) {
 				}
 				if (PLAYER[0].ammoType == 1)
 				{
-					DrawToMainScreen(x + 120, y + 2, L"BOUNCE", 0x0008);
+					DrawToMainScreen(x + 120, y + 2, L"BOUNCE", CYAN);
 				}
 			}
 
