@@ -427,7 +427,7 @@ void PlayerInit() {
 
 void HandleMainGamePlayerInput(int player) {
 
-	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x > 30) {
+	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x > 20) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis -= 0.2;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
