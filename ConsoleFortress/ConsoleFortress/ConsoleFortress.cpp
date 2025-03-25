@@ -126,7 +126,7 @@ void AdjustCameraLocation(int player);
 // GameManager Variables
 
 const double DEFAULTENERGY = 100;
-const int DEFAULTMOVE = 1000;
+const int DEFAULTMOVE = 200;
 const double MAXARTILLARYANGLE = 75;
 const double MAXARTILLARYPOWER = 3;
 const double MAXARTILLARYWIND = 0.02;
@@ -141,8 +141,8 @@ Camera CAMERA;
 Camera CAMERA2;
 
 struct Player {
-	int xAxis;
-	int yAxis;
+	double xAxis;
+	double yAxis;
 	int energy = DEFAULTENERGY;
 	int move = DEFAULTMOVE;
 	double artillaryPower = 0;
@@ -414,7 +414,7 @@ void PlayerInit() {
 void HandleMainGamePlayerInput(int player) {
 
 	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x > 30) {
-		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis--;
+		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis -= 0.2;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
 			PLAYER[player].tankRotation = 1;
@@ -422,7 +422,7 @@ void HandleMainGamePlayerInput(int player) {
 
 	}	
 	if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x < 215) {
-		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis++;
+		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis += 0.2;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
 			PLAYER[player].tankRotation = 0;
@@ -439,13 +439,17 @@ void HandleMainGamePlayerInput(int player) {
 		PLAYER[player].artillaryAngle -= 0.2;
 	}
 	// 탄 변경
-	if (GetAsyncKeyState(0x30) & 0x8000)
+	if (GetAsyncKeyState(0x31) & 0x8000)
 	{
 		PLAYER[player].ammoType = 0;
 	}
-	if (GetAsyncKeyState(0x31) & 0x8000)
+	if (GetAsyncKeyState(0x32) & 0x8000)
 	{
 		PLAYER[player].ammoType = 1;
+	}
+	if (GetAsyncKeyState(0x33) & 0x8000)
+	{
+		PLAYER[player].ammoType = 2;
 	}
 	// 발사 준비
 	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
@@ -567,6 +571,49 @@ static int ballistics(int player)
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", CYAN);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", CYAN);
 	}
+	else if (PLAYER[player].ammoType == 2)
+	{
+		while (bulletVer < 22 - CAMERA.y - (bulletVer * bulletCam))
+		{
+			bulletTimer += 0.1;
+			bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((PLAYER[player].tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
+			bulletVer = (PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180))))) - ((gravity * pow(bulletTimer, 2)) / 2);
+			if (PLAYER[player].tankRotation)
+			{
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"▦████◀", WHITE);
+			}
+			else
+			{
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"▶████▦", WHITE);
+			}
+			if (isEnemyHit(bulletHor, bulletVer))
+			{
+				if (turn % 2)
+				{
+					PLAYER[0].energy -= 5;
+					PLAYER[0].move = 0;
+				}
+				else
+				{
+					PLAYER[1].energy -= 5;
+					PLAYER[1].move = 0;
+				}
+				break;
+			}
+			DrawTankCamera(PLAYER1);
+			DrawTankCamera(PLAYER2);
+			PrintFloor();
+			DrawScreen();
+		}
+		PrintFloor();
+		DrawTankCamera(PLAYER1);
+		DrawTankCamera(PLAYER2);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 19, L"   ╬╬╬", WHITE);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 18, L" ╬╬╬╬╬╬╬", WHITE);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 17, L"╬╬╬╬╬╬╬╬╬", WHITE);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 16, L" ╬╬╬╬╬╬╬", WHITE);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25, bulletVer + PLAYER[player].yAxis - 15, L"   ╬╬╬", WHITE);
+	}
 	DrawScreen();
 	Sleep(1000);
 	bulletCam = 0;
@@ -638,6 +685,10 @@ void RenderStatusPanel(int x, int y, int player) {
 				{
 					DrawToMainScreen(x + 120, y + 2, L"BOUNCE", CYAN);
 				}
+				if (PLAYER[1].ammoType == 2)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"NET", WHITE);
+				}
 			}
 			else
 			{
@@ -648,6 +699,10 @@ void RenderStatusPanel(int x, int y, int player) {
 				if (PLAYER[0].ammoType == 1)
 				{
 					DrawToMainScreen(x + 120, y + 2, L"BOUNCE", CYAN);
+				}
+				if (PLAYER[0].ammoType == 2)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"NET", WHITE);
 				}
 			}
 
