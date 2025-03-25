@@ -602,7 +602,7 @@ static int ballistics(int player)
 			}
 			else
 			{
-				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 2 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"▶████▦", WHITE);
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"▶████▦", WHITE);
 			}
 			DrawTankCamera(PLAYER1);
 			DrawTankCamera(PLAYER2);
