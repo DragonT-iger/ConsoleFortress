@@ -427,7 +427,7 @@ void PlayerInit() {
 
 void HandleMainGamePlayerInput(int player) {
 
-	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x > 20) {
+	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x > 30) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis -= 0.2;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
@@ -461,7 +461,7 @@ void HandleMainGamePlayerInput(int player) {
 	{
 		PLAYER[player].artillaryAngle += 0.15;
 	}
-	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && PLAYER[player].artillaryAngle > 30)
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && PLAYER[player].artillaryAngle > 20)
 	{
 		PLAYER[player].artillaryAngle -= 0.15;
 	}
