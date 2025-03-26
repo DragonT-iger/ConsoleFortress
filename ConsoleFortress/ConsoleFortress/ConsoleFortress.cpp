@@ -161,7 +161,7 @@ const int PLAYER2 = 1;
 
 const int P1_OFFSET_X = 50;
 const int P1_OFFSET_Y = 30;
-const int P2_OFFSET_X = 80;
+const int P2_OFFSET_X = 120;
 const int P2_OFFSET_Y = 30;
 
 enum GamePhase {
