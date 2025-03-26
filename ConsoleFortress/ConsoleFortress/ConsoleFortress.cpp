@@ -1,19 +1,84 @@
 ﻿#include <windows.h>
 #include <conio.h>
+#include <math.h>
+#include <random>
 #include "KeyCodes.h"
 #include "Color.h"
 #include "Tank.h"
 #include "Numbers.h"
 #include "UI.h"
 #include "MainMenu.h"
-
+#include <mmsystem.h>
+#pragma comment(lib,"winmm.lib")
 
 
 
 #define X_PIXELS 2000
 #define Y_PIXELS 500
 
+// ===========================================================
+// Added: Asynchronous Input Handling
+// ===========================================================
+enum KeyState {
+	KEY_NONE,       // not pressed last frame nor this frame
+	KEY_PRESSED,    // pressed this frame (wasn't pressed last frame)
+	KEY_HELD,       // held down (pressed last frame & this frame)
+	KEY_RELEASED    // released this frame (was pressed last frame, not pressed now)
+};
 
+static KeyState g_keyStates[256];
+static bool g_prevKeyDown[256];
+static bool g_currKeyDown[256];
+
+// Updates the key states each frame
+void UpdateInput()
+{
+	// 1) Move current down-states to 'previous'
+	for (int i = 0; i < 256; i++) {
+		g_prevKeyDown[i] = g_currKeyDown[i];
+	}
+
+	// 2) Read new states
+	for (int i = 0; i < 256; i++) {
+		SHORT state = GetAsyncKeyState(i);
+		g_currKeyDown[i] = (state & 0x8000) != 0; // highest bit indicates down
+	}
+
+	// 3) Determine KeyState based on old vs. new
+	for (int i = 0; i < 256; i++) {
+		if (!g_prevKeyDown[i] && !g_currKeyDown[i]) {
+			g_keyStates[i] = KEY_NONE;
+		}
+		else if (!g_prevKeyDown[i] && g_currKeyDown[i]) {
+			g_keyStates[i] = KEY_PRESSED;
+		}
+		else if (g_prevKeyDown[i] && g_currKeyDown[i]) {
+			g_keyStates[i] = KEY_HELD;
+		}
+		else if (g_prevKeyDown[i] && !g_currKeyDown[i]) {
+			g_keyStates[i] = KEY_RELEASED;
+		}
+	}
+}
+
+// Check if a key is held down (pressed or held)
+bool IsKeyDown(int vkCode)
+{
+	return (g_keyStates[vkCode] == KEY_PRESSED || g_keyStates[vkCode] == KEY_HELD);
+}
+
+// Check if a key was pressed this frame (like Unity's GetKeyDown)
+bool IsKeyPressed(int vkCode)
+{
+	return (g_keyStates[vkCode] == KEY_PRESSED);
+}
+
+// Check if a key was released this frame
+bool IsKeyReleased(int vkCode)
+{
+	return (g_keyStates[vkCode] == KEY_RELEASED);
+}
+// ===========================================================
 
 
 // Panel Rendering
@@ -29,6 +94,9 @@ Picture MainScreen;
 
 HANDLE g_hScreen[2];
 int screen_cur = 0;
+
+bool IS_FLOOR[4][Y_PIXELS];
+
 
 
 // Function Prototypes
@@ -52,30 +120,40 @@ void RenderStatusPanel(int x, int y, int player);
 void PlayerInit();
 void DrawTankCamera(int player);
 void HandleMainGamePlayerInput(int player);
+int ballistics(int player);
+void PrintFloor();
+bool isEnemyHit(double bulletHor, double bulletVer);
+void AdjustCameraLocation(int player);
 void MainMenu();
-
+void GameOverScreen();
+void SoundPlay();
 
 // GameManager Variables
 
-const int DEFAULTENERGY = 100;
-const int DEFAULTMOVE = 10;
-const int MAXARTILLARYANGLE = 75;
+const double DEFAULTENERGY = 100;
+const int DEFAULTMOVE = 200;
+const double MAXARTILLARYANGLE = 75;
+const double MAXARTILLARYPOWER = 3;
+const double MAXARTILLARYWIND = 0.02;
 
 struct Camera
 {
-	int x = -80;
-	int y = 50;
+	int x = 0;
+	int y = 0;
 };
 
 Camera CAMERA;
+Camera CAMERA2;
 
 struct Player {
-	int xAxis;
-	int yAxis;
+	double xAxis;
+	double yAxis;
 	int energy = DEFAULTENERGY;
 	int move = DEFAULTMOVE;
-	int artillaryPower = 0;
-	float artillaryAngle = 0.0f;
+	double artillaryPower = 0;
+	double artillaryAngle = 30;
+	double tankRotation = 0;
+	int ammoType = 0;
 };
 Player PLAYER[2];
 
@@ -93,18 +171,33 @@ enum GamePhase {
 	MAIN_MENU,
 	SHOW_PLAYER,
 	PLAYER1_MOVING,
-	PLAYER1_SHOOTING,
 	PLAYER1_ANGLE,
+	PLAYER1_SHOOTING,
 	WAIT_PLAYER1_PROJECTILE,
 	PLAYER2_MOVING,
+	PLAYER2_ANGLE,
 	PLAYER2_SHOOTING,
-	PLAYER2_TURN,
 	WAIT_PLAYER2_PROJECTILE,
 	GAME_OVER
 };
 
 GamePhase currentPhase = MAIN_MENU;
 
+// 포탄 관련
+
+double gravity = -0.02;
+double wind = -0.01;
+bool isCharged = false;
+double bulletHor = 0;
+double bulletVer = 0;
+double bulletTimer = 0;
+double PI = 3.14159265358979323846;
+double bulletCam = 0;
+
+// 턴 관련
+
+bool winner = true;
+int turn = 0;
 
 int main(void)
 {
@@ -119,10 +212,7 @@ int main(void)
 		switch (currentPhase)
 		{
 		case MAIN_MENU:
-			// TODO: fill in main menu logic
-			// Example:
-			// HandlePlayerInput(0);
-			// RenderStatusPanel(...);
+			SoundPlay();
 			MainMenu();
 
 			break;
@@ -232,6 +322,7 @@ int main(void)
 			// Draw both players with camera offset
 			DrawTankCamera(PLAYER1);
 			DrawTankCamera(PLAYER2);
+			PrintFloor();
 
 			// Since there's no Sleep(), the camera moves in real time,
 			// completing in ~1 second for each segment (based on subPhaseDuration).
@@ -241,9 +332,30 @@ int main(void)
 		case PLAYER1_MOVING:
 			// TODO: fill in player1 moving logic
 			// Example usage:
-			HandleMainGamePlayerInput(PLAYER1);
-			RenderStatusPanel(0, 50, PLAYER1);
+			if (turn % 2)
+			{
+				if (PLAYER[1].energy <= 0)
+				{
+					winner = true;
+					currentPhase = GAME_OVER;
+				}
+				HandleMainGamePlayerInput(PLAYER2);
+				RenderStatusPanel(0, 50, PLAYER2);
+			}
+			else
+			{
+				if (PLAYER[0].energy <= 0)
+				{
+					winner = false;
+					currentPhase = GAME_OVER;
+				}
+				HandleMainGamePlayerInput(PLAYER1);
+				RenderStatusPanel(0, 50, PLAYER1);
+			}
+			AdjustCameraLocation(turn % 2);
 			DrawTankCamera(PLAYER1);
+			DrawTankCamera(PLAYER2);
+			PrintFloor();
 			break;
 
 		case PLAYER1_ANGLE:
@@ -258,8 +370,14 @@ int main(void)
 			// TODO: fill in waiting for projectile logic
 			break;
 
-		case PLAYER2_TURN:
+		case PLAYER2_MOVING:
 			// TODO: fill in player2 turn logic
+			break;
+
+		case PLAYER2_ANGLE:
+			break;
+
+		case PLAYER2_SHOOTING:
 			break;
 
 		case WAIT_PLAYER2_PROJECTILE:
@@ -267,8 +385,9 @@ int main(void)
 			break;
 
 		case GAME_OVER:
-			// TODO: fill in game over logic
-			// Possibly break out of the loop or wait for input
+			GameOverScreen();
+
+			// 전역 변수 winner이 true 라면 1p 우승, false라면 2p 우승
 			break;
 		}
 
@@ -281,8 +400,8 @@ int main(void)
 void DrawTankCamera(int player)
 {
 	// We offset the position by CAMERA.x and CAMERA.y
-	int drawX = PLAYER[player].xAxis - CAMERA.x;
-	int drawY = PLAYER[player].yAxis - CAMERA.y;
+	int drawX = PLAYER[player].xAxis - CAMERA.x - (bulletHor * bulletCam) - CAMERA2.x;
+	int drawY = PLAYER[player].yAxis - CAMERA.y - (bulletVer * bulletCam);
 
 	// Safety check to avoid drawing out of bounds
 	if (drawX < 0 || drawX >= X_PIXELS || drawY < 0 || drawY >= Y_PIXELS) {
@@ -294,7 +413,9 @@ void DrawTankCamera(int player)
 
 	// Make sure the index doesn't go out of bounds for your tankUnicodeArt array
 	// (In your project, check the valid range. We'll assume it is safe for demonstration.)
-	DrawMultilineToMainScreen(drawX, drawY, tankUnicodeArt[tankIndex], GREEN);
+
+	if (player == 0) DrawMultilineToMainScreen(drawX, drawY, tankUnicodeArt[tankIndex + int(6 * PLAYER[player].tankRotation)], MAGENTA);
+	if (player == 1) DrawMultilineToMainScreen(drawX, drawY, tankUnicodeArt[tankIndex + int(6 * PLAYER[player].tankRotation)], GREEN);
 }
 
 
@@ -304,29 +425,255 @@ void PlayerInit() {
 
 	PLAYER[1].xAxis = 300;
 	PLAYER[1].yAxis = 50;
+	PLAYER[1].tankRotation = 1;
 }
 
 void HandleMainGamePlayerInput(int player) {
 
-	int key = Getkey();
-
-	if (key == KEY_LEFT && PLAYER[player].move > 0) {
-		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis--;
+	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x > 30) {
+		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis -= 0.2;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
+			PLAYER[player].tankRotation = 1;
 		}
 
 	}
-	if (key == KEY_RIGHT && PLAYER[player].move > 0) {
-		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis++;
+	if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x < 215) {
+		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis += 0.2;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
+			PLAYER[player].tankRotation = 0;
 		}
 
 	}
-	if (key == KEY_SPACE) {
-
+	// 탄 변경
+	if (GetAsyncKeyState(0x31) & 0x8000)
+	{
+		PLAYER[player].ammoType = 0;
 	}
+	if (GetAsyncKeyState(0x32) & 0x8000)
+	{
+		PLAYER[player].ammoType = 1;
+	}
+	if (GetAsyncKeyState(0x33) & 0x8000)
+	{
+		PLAYER[player].ammoType = 2;
+	}
+	// 각도 조절
+	if (GetAsyncKeyState(VK_UP) & 0x8000 && PLAYER[player].artillaryAngle < 75)
+	{
+		PLAYER[player].artillaryAngle += 0.15;
+	}
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && PLAYER[player].artillaryAngle > 30)
+	{
+		PLAYER[player].artillaryAngle -= 0.15;
+	}
+	// 탄 변경
+	if (GetAsyncKeyState(0x31) & 0x8000)
+	{
+		PLAYER[player].ammoType = 0;
+	}
+	if (GetAsyncKeyState(0x32) & 0x8000)
+	{
+		PLAYER[player].ammoType = 1;
+	}
+	if (GetAsyncKeyState(0x33) & 0x8000)
+	{
+		PLAYER[player].ammoType = 2;
+	}
+	// 발사 준비
+	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+	{
+		if (PLAYER[player].artillaryPower < MAXARTILLARYPOWER)
+		{
+			PLAYER[player].artillaryPower += 0.002;
+			isCharged = true;
+		}
+	}
+	// 발사
+	else if (isCharged)
+	{
+		isCharged = false;
+		ballistics(player);
+		PLAYER[player].artillaryPower = 0;
+		bulletTimer = 0;
+		// 턴 바꾸는 코드
+		PLAYER[player].move = DEFAULTMOVE;
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_real_distribution<double> dist(-MAXARTILLARYWIND, MAXARTILLARYWIND);
+		wind = dist(gen);
+		turn++;
+	}
+}
+
+// 탄도
+static int ballistics(int player)
+{
+	bulletCam = 4;
+	bulletHor = 0;
+	bulletVer = 0;
+	if (PLAYER[player].ammoType == 0)
+	{
+		while (bulletVer < 22 - CAMERA.y - (bulletVer * bulletCam))
+		{
+			bulletTimer += 0.1;
+			bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((PLAYER[player].tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
+			bulletVer = PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180)))) - ((gravity * pow(bulletTimer, 2)) / 2);
+			DrawTankCamera(PLAYER1);
+			DrawTankCamera(PLAYER2);
+			if (PLAYER[player].tankRotation)
+			{
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"◀■■<", 0x0008);
+			}
+			else
+			{
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L">■■▶", WHITE);
+			}
+			if (isEnemyHit(bulletHor, bulletVer))
+			{
+				if (turn % 2)
+				{
+					PLAYER[0].energy -= 25;
+				}
+				else
+				{
+					PLAYER[1].energy -= 25;
+				}
+				break;
+			}
+			PrintFloor();
+			DrawScreen();
+		}
+		PrintFloor();
+		DrawTankCamera(PLAYER1);
+		DrawTankCamera(PLAYER2);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", RED);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", RED);
+	}
+	else if (PLAYER[player].ammoType == 1)
+	{
+		bool bounce = true;
+		double reverseBulletVer = 0;
+		PLAYER[player].artillaryPower = PLAYER[player].artillaryPower * 0.5;
+		while (bulletVer < 22 - CAMERA.y - (bulletVer * bulletCam) || bounce)
+		{
+			bulletTimer += 0.1;
+			bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((PLAYER[player].tankRotation * 180) - (PLAYER[player].artillaryAngle - 20)) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
+			if (bounce)
+			{
+				bulletVer = (PLAYER[player].artillaryPower * (bulletTimer * sin((-(PLAYER[player].artillaryAngle - 20) * (PI / 180))))) - ((gravity * pow(bulletTimer, 2)) / 2);
+			}
+			else
+			{
+				bulletVer = (PLAYER[player].artillaryPower * (bulletTimer * sin((-(PLAYER[player].artillaryAngle - 20) * (PI / 180))))) - ((gravity * pow(bulletTimer - reverseBulletVer, 2)) / 2);
+			}
+			if (bulletVer > 21 - CAMERA.y - (bulletVer * bulletCam) && bounce)
+			{
+				bounce = false;
+				reverseBulletVer = bulletTimer * 1.99999;
+			}
+			DrawTankCamera(PLAYER1);
+			DrawTankCamera(PLAYER2);
+			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L"◢■■◣", BLUE);
+			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"◥■■◤", BLUE);
+			if (isEnemyHit(bulletHor, bulletVer))
+			{
+				if (turn % 2)
+				{
+					PLAYER[0].energy -= 25;
+				}
+				else
+				{
+					PLAYER[1].energy -= 25;
+				}
+				break;
+			}
+			PrintFloor();
+			DrawScreen();
+		}
+		PrintFloor();
+		DrawTankCamera(PLAYER1);
+		DrawTankCamera(PLAYER2);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", CYAN);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", CYAN);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", CYAN);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 16, L" ◀█████▶", CYAN);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 15, L"   ▼▼▼", CYAN);
+	}
+	else if (PLAYER[player].ammoType == 2)
+	{
+		PLAYER[player].artillaryPower = PLAYER[player].artillaryPower * 0.8;
+		while (bulletVer < 22 - CAMERA.y - (bulletVer * bulletCam))
+		{
+			bulletTimer += 0.1;
+			bulletHor = PLAYER[player].artillaryPower * (bulletTimer * cos(((PLAYER[player].tankRotation * 180) - PLAYER[player].artillaryAngle) * (PI / 180))) + ((wind * pow(bulletTimer, 2)) / 2);
+			bulletVer = (PLAYER[player].artillaryPower * (bulletTimer * sin((-PLAYER[player].artillaryAngle * (PI / 180))))) - ((gravity * pow(bulletTimer, 2)) / 2);
+			if (PLAYER[player].tankRotation)
+			{
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"▦████◀", WHITE);
+			}
+			else
+			{
+				DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"▶████▦", WHITE);
+			}
+			DrawTankCamera(PLAYER1);
+			DrawTankCamera(PLAYER2);
+			if (isEnemyHit(bulletHor, bulletVer))
+			{
+				if (turn % 2)
+				{
+					PLAYER[0].energy -= 10;
+					PLAYER[0].move = 0;
+				}
+				else
+				{
+					PLAYER[1].energy -= 10;
+					PLAYER[1].move = 0;
+				}
+				break;
+			}
+			PrintFloor();
+			DrawScreen();
+		}
+		DrawTankCamera(PLAYER1);
+		DrawTankCamera(PLAYER2);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 19, L"   ╬╬╬", WHITE);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L" ╬╬╬╬╬╬╬", WHITE);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"╬╬╬╬╬╬╬╬╬", WHITE);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 16, L" ╬╬╬╬╬╬╬", WHITE);
+		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 15, L"   ╬╬╬", WHITE);
+		PrintFloor();
+	}
+	DrawScreen();
+	Sleep(1000);
+	bulletCam = 0;
+	bulletHor = 0;
+	bulletVer = 0;
+	return 0;
+}
+
+static bool isEnemyHit(double bulletHor, double bulletVer)
+{
+	bool isHit = false;
+	if (turn % 2)
+	{
+		if ((bulletHor + PLAYER[1].xAxis - 21 > PLAYER[0].xAxis - CAMERA.x - (bulletHor * bulletCam)) && (bulletHor + PLAYER[1].xAxis - 39 < PLAYER[0].xAxis - CAMERA.x - (bulletHor * bulletCam)) && (bulletVer + PLAYER[1].yAxis > 18 + PLAYER[0].yAxis - CAMERA.y - (bulletVer * bulletCam)))
+		{
+			isHit = true;
+		}
+	}
+	else
+	{
+		if ((bulletHor + PLAYER[0].xAxis - 21 > PLAYER[1].xAxis - CAMERA.x - (bulletHor * bulletCam)) && (bulletHor + PLAYER[0].xAxis - 39 < PLAYER[1].xAxis - CAMERA.x - (bulletHor * bulletCam)) && (bulletVer + PLAYER[0].yAxis > 18 + PLAYER[1].yAxis - CAMERA.y - (bulletVer * bulletCam)))
+		{
+			isHit = true;
+		}
+	}
+	return isHit;
 }
 
 void RenderStatusPanel(int x, int y, int player) {
@@ -345,7 +692,7 @@ void RenderStatusPanel(int x, int y, int player) {
 			if (i == 1) {
 				DrawToMainScreen(x + 3, y - 2, L"PLAYER2", MAGENTA);
 			}
-			DrawToMainScreen(x + 4, y - 1, L"angle");
+			DrawToMainScreen(x + 4, y - 1, L"ANGLE");
 
 			DrawMultilineToMainScreen(x + 2, y, numberUnicodeArt[tens], YELLOW);
 			DrawMultilineToMainScreen(x + 2 + 5, y, numberUnicodeArt[ones], YELLOW);
@@ -353,11 +700,52 @@ void RenderStatusPanel(int x, int y, int player) {
 			DrawToMainScreen(x + 20, y - 2, L"ENERGY", GREEN);
 			DrawToMainScreen(x + 21, y, L"POWER", RED);
 			DrawToMainScreen(x + 22, y + 2, L"MOVE", YELLOW);
+			if (wind > 0)
+			{
+				DrawToMainScreen(x + 120, y - 2, L"WIND ->", CYAN);
+			}
+			else
+			{
+				DrawToMainScreen(x + 120, y - 2, L"WIND <-", CYAN);
+			}
+			DrawToMainScreen(x + 120, y + 1, L"AMMO", 0x0007);
+			if (turn % 2)
+			{
+				if (PLAYER[1].ammoType == 0)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"CANNON", 0x0008);
+				}
+				if (PLAYER[1].ammoType == 1)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"BOUNCE", CYAN);
+				}
+				if (PLAYER[1].ammoType == 2)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"NET", WHITE);
+				}
+			}
+			else
+			{
+				if (PLAYER[0].ammoType == 0)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"CANNON", 0x0008);
+				}
+				if (PLAYER[0].ammoType == 1)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"BOUNCE", CYAN);
+				}
+				if (PLAYER[0].ammoType == 2)
+				{
+					DrawToMainScreen(x + 120, y + 2, L"NET", WHITE);
+				}
+			}
 
 			const int SliderMaxSize = 75;
 
 			int energySliderSize = (PLAYER[i].energy * SliderMaxSize) / DEFAULTENERGY;
 			int moveSliderSize = (PLAYER[i].move * SliderMaxSize) / DEFAULTMOVE;
+			int powerSliderSize = (PLAYER[i].artillaryPower * SliderMaxSize) / MAXARTILLARYPOWER;
+			int windSliderSize = (fabs(wind) * 25) / MAXARTILLARYWIND;
 
 			for (int i = 0; i < energySliderSize; i++) {
 				DrawToMainScreen(x + 30 + i, y - 2, L"█", GREEN);
@@ -365,6 +753,16 @@ void RenderStatusPanel(int x, int y, int player) {
 
 			for (int i = 0; i < moveSliderSize; i++) {
 				DrawToMainScreen(x + 30 + i, y + 2, L"█", YELLOW);
+			}
+
+			for (int i = 0; i < powerSliderSize; i++)
+			{
+				DrawToMainScreen(x + 30 + i, y, L"█", RED);
+			}
+
+			for (int i = 0; i < windSliderSize; i++)
+			{
+				DrawToMainScreen(x + 120 + i, y - 1, L"█", BLUE);
 			}
 
 		}
@@ -412,6 +810,12 @@ void ScreenInit() {
 
 	CursorView(g_hScreen[0], false);
 	CursorView(g_hScreen[1], false);
+
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < Y_PIXELS; j++) {
+			IS_FLOOR[i][j] = true;
+		}
+	}
 }
 
 void ScreenStart() {
@@ -527,50 +931,82 @@ void DrawMultilineToMainScreen(int x, int y, const wchar_t* s, WORD color = 0x00
 	}
 }
 
+void PrintFloor() {
+	wchar_t line[Y_PIXELS + 1];
+
+	for (int row = 0; row < 4; row++) {
+		for (int col = 0; col < Y_PIXELS; col++) {
+			line[col] = IS_FLOOR[row][col] ? L'█' : L' ';
+		}
+		line[Y_PIXELS] = L'\0';
+
+		DrawMultilineToMainScreen(0, 6 + PLAYER[0].yAxis - CAMERA.y - (bulletVer * bulletCam) + row, line, GREEN);
+	}
+}
+
+void AdjustCameraLocation(int player) {
+	if (player == 0) {
+		CAMERA2.x = 0;
+		CAMERA2.y = 0;
+	}
+
+	else {
+		CAMERA2.x = 180;
+		CAMERA2.y = 0;
+	}
+}
+
 void MainMenu()
 {
 	initScreen(MainScreen);
 
 	int key = 0;
-	int menuX = 45;
+	int menuX = 145;
 	int menuY = 22;
+	int tankX = 150;
+	int tankY = 10;
+	int wordX = 5;
+	int wordY = 52;
 	ULONGLONG curTime = 0;
 	ULONGLONG preTime = 0;
 	bool blinkFlag = true;
 	ULONGLONG loopBullet = 0;
 
-	//while (_kbhit()) _getch(); //버퍼에 있는 키값을 버림 
+	while (_kbhit()) _getch(); //버퍼에 있는 키값을 버림 
 
 	while (1)
 	{
 		curTime = GetTickCount64();
+
+		DrawMultilineToMainScreen(0, 0, mainMenuArt[5], WHITE);
+		DrawMultilineToMainScreen(wordX, wordY, mainMenuArt[6], WHITE);
 
 		if (curTime - preTime >= 400)
 		{
 			blinkFlag = !blinkFlag;
 			preTime = curTime;
 
-			DrawMultilineToMainScreen(40, 10, tankUnicodeArt[4], GREEN);
+			DrawMultilineToMainScreen(tankX, tankY, tankUnicodeArt[4], GREEN);
 			if (loopBullet % 3 == 0)
 			{
-				DrawMultilineToMainScreen(55, 8, mainMenuArt[2], GREEN);
+				DrawMultilineToMainScreen(tankX + 15, tankY - 2, mainMenuArt[2], GREEN);
 				loopBullet++;
 			}
 			else if (loopBullet % 3 == 1)
 			{
-				DrawMultilineToMainScreen(65, 3, mainMenuArt[2], GREEN);
+				DrawMultilineToMainScreen(tankX + 30, tankY - 7, mainMenuArt[2], GREEN);
 				loopBullet++;
 			}
 			else if (loopBullet % 3 == 2)
 			{
-				DrawMultilineToMainScreen(75, 8, mainMenuArt[2], GREEN);
+				DrawMultilineToMainScreen(tankX + 45, tankY - 2, mainMenuArt[2], GREEN);
 				loopBullet++;
 			}
 
 			if (blinkFlag)
 			{
 				DrawMultilineToMainScreen(menuX, menuY, mainMenuArt[0], YELLOW);
-				DrawMultilineToMainScreen(menuX+5, menuY + 3, mainMenuArt[3], YELLOW);
+				DrawMultilineToMainScreen(menuX + 5, menuY + 3, mainMenuArt[3], YELLOW);
 
 				DrawScreen();
 			}
@@ -578,7 +1014,7 @@ void MainMenu()
 			else
 			{
 				DrawMultilineToMainScreen(menuX, menuY, mainMenuArt[1], YELLOW);
-				DrawMultilineToMainScreen(menuX+5, menuY + 3, mainMenuArt[4], YELLOW);
+				DrawMultilineToMainScreen(menuX + 5, menuY + 3, mainMenuArt[4], YELLOW);
 
 				DrawScreen();
 			}
@@ -587,16 +1023,71 @@ void MainMenu()
 
 		}
 
-		if (_kbhit()) {			//키입력받음 
+		if (_kbhit()) {         //키입력받음 
 			key = _getch();
-			if (key == KEY_ESC)	exit(0);	// ESC키면 종료 
+			if (key == KEY_ESC)   exit(0);   // ESC키면 종료 
 			else
 			{
 				currentPhase = SHOW_PLAYER;
-				break;		// 아니면 그냥 계속 진행 
+				break;      // 아니면 그냥 계속 진행 
 			}
 		}
-
-		Sleep(50);
 	}
+}
+
+void GameOverScreen()
+{
+	int key = 0;
+	int textPlayerX = 30;
+	int textPlayerY = 20;
+	int textGameOverX = 30;
+	int textGameOverY = 10;
+	int textRestartX = 30;
+	int textRestratY = 30;
+	ULONGLONG curTime = 0;
+	ULONGLONG preTime = 0;
+
+	while (_kbhit()) _getch(); //버퍼에 있는 키값을 버림 
+
+	while (1)
+	{
+		curTime = GetTickCount64();
+
+		if (curTime - preTime >= 400)
+		{
+			preTime = curTime;
+
+			DrawMultilineToMainScreen(textGameOverX, textGameOverY, mainMenuArt[9], YELLOW);
+			DrawMultilineToMainScreen(textRestartX, textRestratY, mainMenuArt[10], YELLOW);
+			DrawMultilineToMainScreen(textRestartX, textRestratY + 5, mainMenuArt[3], YELLOW);
+
+
+			if (winner)
+			{
+				DrawMultilineToMainScreen(textPlayerX, textPlayerY, mainMenuArt[7], YELLOW);
+				DrawScreen();
+			}
+			else if (!winner)
+			{
+				DrawMultilineToMainScreen(textPlayerX, textPlayerY, mainMenuArt[8], YELLOW);
+				DrawScreen();
+			}
+
+		}
+
+		if (_kbhit()) {         //키입력받음 
+			key = _getch();
+			if (key == KEY_ESC)   exit(0);   // ESC키면 종료 
+			else
+			{
+				currentPhase = SHOW_PLAYER;
+				break;      // 아니면 그냥 계속 진행 
+			}
+		}
+	}
+}
+
+void SoundPlay()
+{
+	PlaySound(TEXT("cannon.wav"), NULL, SND_FILENAME | SND_ASYNC);
 }
