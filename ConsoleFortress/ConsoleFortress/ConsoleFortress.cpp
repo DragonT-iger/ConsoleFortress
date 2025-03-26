@@ -128,7 +128,7 @@ void MainMenu();
 // GameManager Variables
 
 const double DEFAULTENERGY = 100;
-const int DEFAULTMOVE = 200;
+const int DEFAULTMOVE = 300;
 const double MAXARTILLARYANGLE = 75;
 const double MAXARTILLARYPOWER = 3;
 const double MAXARTILLARYWIND = 0.02;
@@ -161,7 +161,7 @@ const int PLAYER2 = 1;
 
 const int P1_OFFSET_X = 50;
 const int P1_OFFSET_Y = 30;
-const int P2_OFFSET_X = 120;
+const int P2_OFFSET_X = 140;
 const int P2_OFFSET_Y = 30;
 
 enum GamePhase {
