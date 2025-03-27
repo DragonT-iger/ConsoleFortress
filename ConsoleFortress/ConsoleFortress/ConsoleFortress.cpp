@@ -8,6 +8,8 @@
 #include "Numbers.h"
 #include "UI.h"
 #include "MainMenu.h"
+#include <mmsystem.h>
+#pragma comment(lib,"winmm.lib")
 
 
 
@@ -125,6 +127,11 @@ bool isEnemyHit(double bulletHor, double bulletVer);
 void AdjustCameraLocation(int player);
 void MainMenu();
 void GameOverScreen();
+void SoundCannon();
+void SoundExplosion();
+void SoundTankIdle();
+void SoundCharging();
+void SoundNULL();
 
 // GameManager Variables
 
@@ -437,25 +444,24 @@ void HandleMainGamePlayerInput(int player) {
 		rightRange = 215;
 	}
 
-
-
-
 	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x > leftRange) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis -= 0.2;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
 			PLAYER[player].tankRotation = 1;
+			SoundTankIdle();
 		}
+	}
 
-	}	
 	if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x < rightRange) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis += 0.2;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
 			PLAYER[player].tankRotation = 0;
+			SoundTankIdle();
 		}
-
 	}
+
 	// 탄 변경
 	if (GetAsyncKeyState(0x31) & 0x8000)
 	{
@@ -477,19 +483,6 @@ void HandleMainGamePlayerInput(int player) {
 	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && PLAYER[player].artillaryAngle > 21)
 	{
 		PLAYER[player].artillaryAngle -= 0.15;
-	}
-	// 탄 변경
-	if (GetAsyncKeyState(0x31) & 0x8000)
-	{
-		PLAYER[player].ammoType = 0;
-	}
-	if (GetAsyncKeyState(0x32) & 0x8000)
-	{
-		PLAYER[player].ammoType = 1;
-	}
-	if (GetAsyncKeyState(0x33) & 0x8000)
-	{
-		PLAYER[player].ammoType = 2;
 	}
 	// 발사 준비
 	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
@@ -1095,4 +1088,29 @@ void GameOverScreen()
 			}
 		}
 	}
+}
+
+void SoundCannon()
+{
+	PlaySound(TEXT("cannon.wav"), NULL, SND_FILENAME | SND_ASYNC);
+}
+
+void SoundExplosion()
+{
+	PlaySound(TEXT("explosion.wav"), NULL, SND_FILENAME | SND_ASYNC);
+}
+
+void SoundTankIdle()
+{
+	PlaySound(TEXT("tankidle.wav"), NULL, SND_FILENAME | SND_ASYNC);
+}
+
+void SoundCharging()
+{
+	PlaySound(TEXT("charging.wav"), NULL, SND_FILENAME | SND_ASYNC);
+}
+
+void SoundNULL()
+{
+	PlaySound(NULL, 0, 0);
 }
