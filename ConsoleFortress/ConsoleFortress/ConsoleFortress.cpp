@@ -598,8 +598,6 @@ static int ballistics(int player)
 			}
 			DrawTankCamera(PLAYER1);
 			DrawTankCamera(PLAYER2);
-			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L"◢■█■◣", BLUE);
-			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"◥■█■◤", BLUE);
 			if (isEnemyHit(bulletHor, bulletVer))
 			{
 				if (turn % 2)
@@ -612,6 +610,8 @@ static int ballistics(int player)
 				}
 				break;
 			}
+			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L"◢■█■◣", BLUE);
+			DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 20 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"◥■█■◤", BLUE);
 			PrintFloor();
 			DrawScreen();
 		}
