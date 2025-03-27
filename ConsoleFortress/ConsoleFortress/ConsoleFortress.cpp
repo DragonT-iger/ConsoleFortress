@@ -425,7 +425,22 @@ void PlayerInit() {
 
 void HandleMainGamePlayerInput(int player) {
 
-	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x > 30) {
+	int leftRange;
+	int rightRange;
+
+	if (player == 0) {
+		leftRange = 30;
+		rightRange = 150;
+	}
+	else {
+		leftRange = 100;
+		rightRange = 215;
+	}
+
+
+
+
+	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x > leftRange) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis -= 0.2;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
@@ -433,7 +448,7 @@ void HandleMainGamePlayerInput(int player) {
 		}
 
 	}	
-	if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x < 215) {
+	if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && PLAYER[player].move > 0 && PLAYER[player].xAxis - CAMERA2.x < rightRange) {
 		if (PLAYER[player].xAxis > 0) PLAYER[player].xAxis += 0.2;
 		if (PLAYER[player].move > 0) {
 			PLAYER[player].move--;
