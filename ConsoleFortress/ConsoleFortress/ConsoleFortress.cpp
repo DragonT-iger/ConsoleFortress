@@ -130,7 +130,7 @@ void MainMenu();
 const double DEFAULTENERGY = 100;
 const int DEFAULTMOVE = 300;
 const double MAXARTILLARYANGLE = 75;
-const double MAXARTILLARYPOWER = 3;
+const double MAXARTILLARYPOWER = 2.5;
 const double MAXARTILLARYWIND = 0.02;
 
 struct Camera
@@ -161,7 +161,7 @@ const int PLAYER2 = 1;
 
 const int P1_OFFSET_X = 50;
 const int P1_OFFSET_Y = 30;
-const int P2_OFFSET_X = 140;
+const int P2_OFFSET_X = 180;
 const int P2_OFFSET_Y = 30;
 
 enum GamePhase {
@@ -507,7 +507,7 @@ void HandleMainGamePlayerInput(int player) {
 // 탄도
 static int ballistics(int player)
 {
-	bulletCam = 4;
+	bulletCam = 5;
 	bulletHor = 0;
 	bulletVer = 0;
 	if (PLAYER[player].ammoType == 0)
@@ -638,12 +638,12 @@ static int ballistics(int player)
 		}
 		DrawTankCamera(PLAYER1);
 		DrawTankCamera(PLAYER2);
+		PrintFloor();
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 19, L"  ╬╬╬╬╬", WHITE);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L" ╬╬╬╬╬╬╬", WHITE);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"╬╬╬╬╬╬╬╬╬", WHITE);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 16, L" ╬╬╬╬╬╬╬", WHITE);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 15, L"  ╬╬╬╬╬", WHITE);
-		PrintFloor();
 	}
 	DrawScreen();
 	Sleep(1000);
