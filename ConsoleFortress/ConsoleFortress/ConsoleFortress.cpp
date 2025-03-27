@@ -124,6 +124,7 @@ void PrintFloor();
 bool isEnemyHit(double bulletHor, double bulletVer);
 void AdjustCameraLocation(int player);
 void MainMenu();
+void GameOverScreen();
 
 // GameManager Variables
 
@@ -245,7 +246,7 @@ int main(void)
 				{
 					startX = CAMERA.x;
 					startY = CAMERA.y;
-					targetX = PLAYER[PLAYER2].xAxis - P2_OFFSET_X;
+					targetX = PLAYER[PLAYER2].xAxis - P2_OFFSET_X + 50;
 					targetY = PLAYER[PLAYER2].yAxis - P2_OFFSET_Y;
 
 					// Reset the timer and proceed to the next sub-phase
@@ -381,10 +382,7 @@ int main(void)
 			break;
 
 		case GAME_OVER:
-			// TODO: fill in game over logic
-			// Possibly break out of the loop or wait for input
-			
-			// 전역 변수 winner이 true 라면 1p 우승, false라면 2p 우승
+			GameOverScreen();
 			break;
 		}
 
@@ -1017,6 +1015,58 @@ void MainMenu()
 			}
 
 
+
+		}
+
+		if (_kbhit()) {         //키입력받음 
+			key = _getch();
+			if (key == KEY_ESC)   exit(0);   // ESC키면 종료 
+			else
+			{
+				currentPhase = SHOW_PLAYER;
+				break;      // 아니면 그냥 계속 진행 
+			}
+		}
+	}
+}
+
+void GameOverScreen()
+{
+	int key = 0;
+	int textPlayerX = 30;
+	int textPlayerY = 20;
+	int textGameOverX = 30;
+	int textGameOverY = 10;
+	int textRestartX = 30;
+	int textRestratY = 30;
+	ULONGLONG curTime = 0;
+	ULONGLONG preTime = 0;
+
+	while (_kbhit()) _getch(); //버퍼에 있는 키값을 버림 
+
+	while (1)
+	{
+		curTime = GetTickCount64();
+
+		if (curTime - preTime >= 400)
+		{
+			preTime = curTime;
+
+			DrawMultilineToMainScreen(textGameOverX, textGameOverY, mainMenuArt[9], YELLOW);
+			DrawMultilineToMainScreen(textRestartX, textRestratY, mainMenuArt[10], YELLOW);
+			DrawMultilineToMainScreen(textRestartX, textRestratY + 5, mainMenuArt[3], YELLOW);
+
+
+			if (winner)
+			{
+				DrawMultilineToMainScreen(textPlayerX, textPlayerY, mainMenuArt[7], YELLOW);
+				DrawScreen();
+			}
+			else if (!winner)
+			{
+				DrawMultilineToMainScreen(textPlayerX, textPlayerY, mainMenuArt[8], YELLOW);
+				DrawScreen();
+			}
 
 		}
 
