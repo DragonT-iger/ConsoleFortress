@@ -661,6 +661,7 @@ static int ballistics(int player)
 	bulletCam = 0;
 	bulletHor = 0;
 	bulletVer = 0;
+	SoundNULL();
 	return 0;
 }
 
