@@ -490,12 +490,14 @@ void HandleMainGamePlayerInput(int player) {
 		if (PLAYER[player].artillaryPower < MAXARTILLARYPOWER)
 		{
 			PLAYER[player].artillaryPower += 0.002;
+			SoundCharging();
 			isCharged = true;
 		}
 	}
 	// 발사
 	else if (isCharged)
 	{
+		SoundCannon();
 		isCharged = false;
 		ballistics(player);
 		PLAYER[player].artillaryPower = 0;
@@ -551,6 +553,7 @@ static int ballistics(int player)
 		PrintFloor();
 		DrawTankCamera(PLAYER1);
 		DrawTankCamera(PLAYER2);
+		SoundExplosion();
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", RED);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", RED);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", RED);
@@ -601,6 +604,7 @@ static int ballistics(int player)
 		PrintFloor();
 		DrawTankCamera(PLAYER1);
 		DrawTankCamera(PLAYER2);
+		SoundExplosion();
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 19, L"   ▲▲▲", CYAN);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L" ◀█████▶", CYAN);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"◀███████▶", CYAN);
@@ -645,6 +649,7 @@ static int ballistics(int player)
 		DrawTankCamera(PLAYER1);
 		DrawTankCamera(PLAYER2);
 		PrintFloor();
+		SoundExplosion();
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 19, L"  ╬╬╬╬╬", WHITE);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 18, L" ╬╬╬╬╬╬╬", WHITE);
 		DrawMultilineToMainScreen(bulletHor + PLAYER[player].xAxis - 25 - CAMERA2.x, bulletVer + PLAYER[player].yAxis - 17, L"╬╬╬╬╬╬╬╬╬", WHITE);
@@ -1102,12 +1107,12 @@ void SoundExplosion()
 
 void SoundTankIdle()
 {
-	PlaySound(TEXT("tankidle.wav"), NULL, SND_FILENAME | SND_ASYNC);
+	PlaySound(TEXT("tankidle.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
 }
 
 void SoundCharging()
 {
-	PlaySound(TEXT("charging.wav"), NULL, SND_FILENAME | SND_ASYNC);
+	PlaySound(TEXT("charging.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
 }
 
 void SoundNULL()
