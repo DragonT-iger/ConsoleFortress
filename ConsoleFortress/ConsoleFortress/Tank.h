@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#ifndef TANK_H
-#define TANK_H
 static const wchar_t* tankUnicodeArt[] = {
 	// Deg0
 	L"                    \n"
@@ -99,5 +97,3 @@ static const wchar_t* tankUnicodeArt[] = {
 	L"   \\_____________/\n"
 	L"    \\0_0_0_0_0_0/\n"
 };
-
-#endif // TANK_H

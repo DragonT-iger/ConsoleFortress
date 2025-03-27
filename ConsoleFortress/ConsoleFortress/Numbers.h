@@ -1,6 +1,4 @@
 ﻿#pragma once
-#ifndef NUMBERS_H
-#define NUMBERS_H
 
 
 static const wchar_t* const numberUnicodeArt[10] = {
@@ -55,4 +53,3 @@ static const wchar_t* const numberUnicodeArt[10] = {
     L"▄▄▄█\n"
 };
 
-#endif // NUMBERS_H

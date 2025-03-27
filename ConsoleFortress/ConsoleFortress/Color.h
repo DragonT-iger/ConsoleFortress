@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef COLOR_H
-#define COLOR_H
-
 // Foreground color definitions (lower 4 bits)
 #define BLACK       0x0000
 #define BLUE        0x0001
@@ -33,5 +30,3 @@
 // Example combined colors:
 // For a bright blue foreground: (BLUE | BRIGHT)
 // For a bright white background: (BG_WHITE | BG_BRIGHT)
-
-#endif // COLOR_H

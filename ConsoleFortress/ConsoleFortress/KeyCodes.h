@@ -1,11 +1,4 @@
 ﻿#pragma once
-/**************************************************************
- * File: KeyCodes.h
- * Description: Header file defining various key codes for use
- *              with _getch() in a Win32 console application.
- **************************************************************/
-#ifndef KEYCODES_H
-#define KEYCODES_H
 
 #include <conio.h>
 
@@ -79,5 +72,3 @@ int Getkey(void)
     }
     return ch;
 }
-
-#endif // KEYCODES_H

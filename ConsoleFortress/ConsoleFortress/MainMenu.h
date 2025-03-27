@@ -1,7 +1,5 @@
 #pragma once
 
-#ifndef MAINMENU_H
-#define MAINMENU_H
 static const wchar_t* mainMenuArt[] =
 {
 	L" ¢º PRESS ANY KEY TO START ¢¸ ",
@@ -98,5 +96,3 @@ static const wchar_t* mainMenuArt[] =
 	L" ¢º PRESS ANY KEY TO RESTART ¢¸ "
 
 };
-
-#endif // MAINMENU_H
