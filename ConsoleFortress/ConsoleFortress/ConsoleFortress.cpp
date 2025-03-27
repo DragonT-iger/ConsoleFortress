@@ -223,7 +223,7 @@ int main(void)
 
 		case SHOW_PLAYER:
 		{
-
+			PlayerInit();
 			static int showPlayerSubPhase = 0;
 			static const int waitDuration = 2000;
 
@@ -427,8 +427,22 @@ void PlayerInit() {
 
 	PLAYER[1].xAxis = 300;
 	PLAYER[1].yAxis = 50;
-	PLAYER[1].tankRotation = 1;
+	PLAYER[1].tankRotation = 1; 
+
+	PLAYER[0].energy = DEFAULTENERGY;
+	PLAYER[0].move = DEFAULTMOVE;
+	PLAYER[0].artillaryPower = 0;
+	PLAYER[0].artillaryAngle = 30;
+	PLAYER[0].tankRotation = 0;
+	PLAYER[0].ammoType = 0;
+
+	PLAYER[1].energy = DEFAULTENERGY;
+	PLAYER[1].move = DEFAULTMOVE;
+	PLAYER[1].artillaryPower = 0;
+	PLAYER[1].artillaryAngle = 30;
+	PLAYER[1].ammoType = 0;
 }
+
 
 void HandleMainGamePlayerInput(int player) {
 
