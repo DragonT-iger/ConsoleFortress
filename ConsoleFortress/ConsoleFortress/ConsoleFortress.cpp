@@ -14,8 +14,8 @@
 
 
 
-#define X_PIXELS 2000
-#define Y_PIXELS 500
+#define X_PIXELS 400
+#define Y_PIXELS 200
 
 // ===========================================================
 // Added: Asynchronous Input Handling
@@ -204,6 +204,16 @@ double bulletCam = 0;
 bool winner = true;
 int turn = 0;
 
+
+static int showPlayerSubPhase = 0;
+static const int waitDuration = 2000;
+
+static const ULONGLONG subPhaseDuration = 1000; // 1 second in ms
+static ULONGLONG subPhaseStartTime = 0;
+
+static int startX = 0, startY = 0;
+static int targetX = 0, targetY = 0;
+
 int main(void)
 {
 	CursorView(GetStdHandle(STD_OUTPUT_HANDLE), false);
@@ -214,6 +224,23 @@ int main(void)
 	// Main game loop with switch-case for phases
 	while (true)
 	{
+
+		if (GetAsyncKeyState('P') & 0x8000 && turn % 2 == 0) {
+			// Reinitialize non-constant variables for the player phase
+			showPlayerSubPhase = 0;
+			subPhaseStartTime = 0;
+			startX = 0;
+			startY = 0;
+			targetX = 0;
+			targetY = 0;
+			turn = 0;
+			CAMERA.x = 0;
+			CAMERA.y = 0;
+
+			currentPhase = MAIN_MENU;
+			PlayerInit();
+		}
+
 		switch (currentPhase)
 		{
 		case MAIN_MENU:
@@ -224,14 +251,7 @@ int main(void)
 		case SHOW_PLAYER:
 		{
 			PlayerInit();
-			static int showPlayerSubPhase = 0;
-			static const int waitDuration = 2000;
-
-			static const ULONGLONG subPhaseDuration = 1000; // 1 second in ms
-			static ULONGLONG subPhaseStartTime = 0;
-
-			static int startX = 0, startY = 0;
-			static int targetX = 0, targetY = 0;
+			
 
 			// Get current time in ms
 			ULONGLONG now = GetTickCount64();
@@ -319,7 +339,7 @@ int main(void)
 			case 3:
 				// Move on to the next phase
 				currentPhase = PLAYER1_MOVING;
-				RenderStatusPanel(0, 50, PLAYER1);
+				RenderStatusPanel(0, 44, PLAYER1);
 				break;
 			}
 
@@ -344,7 +364,7 @@ int main(void)
 					currentPhase = GAME_OVER;
 				}
 				HandleMainGamePlayerInput(PLAYER2);
-				RenderStatusPanel(0, 50, PLAYER2);
+				RenderStatusPanel(0, 44, PLAYER2);
 			}
 			else
 			{
@@ -354,7 +374,7 @@ int main(void)
 					currentPhase = GAME_OVER;
 				}
 				HandleMainGamePlayerInput(PLAYER1);
-				RenderStatusPanel(0, 50, PLAYER1);
+				RenderStatusPanel(0, 44, PLAYER1);
 			}
 			AdjustCameraLocation(turn % 2);
 			DrawTankCamera(PLAYER1);
